@@ -7,4 +7,6 @@ export const config = {
   urlApp: process.env.APP_URL ?? 'http://localhost:5173',
   /** Só desenvolvimento/testes: habilita GET /api/dev/caixa-de-saida (não há envio de e-mail). */
   exporCaixaDeSaida: process.env.EXPOR_CAIXA_DE_SAIDA === 'true',
+  /** Origens externas autorizadas a chamar a API (CORS), separadas por vírgula. Vazio = nenhuma. */
+  origensPermitidas: (process.env.CORS_ORIGENS ?? '').split(',').map((o) => o.trim()).filter(Boolean),
 }
