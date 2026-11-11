@@ -3,8 +3,8 @@
 Fonte única de verdade visual do projeto. **Toda tela nova (inclusive as do aluno) deve ser montada com estes tokens e componentes**, sem inventar cores, tamanhos ou padrões novos.
 
 - Origem: Figma `6C4VTzYwxrg2DpZvmoMRtT`, frame `546:6577` (ver [`SPEC-TELAS.md`](SPEC-TELAS.md)).
-- Página viva com os componentes reais: rota **`/design-system`** (`src/pages/DesignSystem.tsx`).
-- Tokens: `src/index.css` (`@theme`). Componentes: `src/components/ui.tsx`, `layout.tsx`, `modals.tsx`.
+- Página viva com os componentes reais: rota **`/design-system`** (`frontend/src/pages/DesignSystem.tsx`).
+- Tokens: `frontend/src/index.css` (`@theme`). Componentes: `frontend/src/components/ui.tsx`, `layout.tsx`, `modals.tsx`.
 
 > Regra de ouro: **se já existe um componente ou token para o caso, use-o.** Se o Figma trouxer algo realmente novo, adicione ao design system (token/componente + esta página + `/design-system`) antes de usar numa tela.
 
@@ -68,7 +68,7 @@ Sidebar fixa **220px** + coluna fluida; topbar **54px**; conteúdo com `gap-5`; 
 
 ## 3. Componentes
 
-### `src/components/ui.tsx`
+### `frontend/src/components/ui.tsx`
 | Componente | Para quê | Props principais |
 |---|---|---|
 | `Icon` | ícone Material | `name`, `round` (padrão `true`), `className` (`text-[Npx]` define o tamanho) |
@@ -90,7 +90,7 @@ Sidebar fixa **220px** + coluna fluida; topbar **54px**; conteúdo com `gap-5`; 
 | `Panel` | painel com título/subtítulo | `titulo`, `subtitulo`, `tituloTamanho` |
 | `DifficultyLetter` | letra I/P/C na fonte Plex | `letra` |
 
-### `src/components/layout.tsx`
+### `frontend/src/components/layout.tsx`
 | Componente | Para quê |
 |---|---|
 | `AppShell` | página autenticada: sidebar + topbar + conteúdo. Props: `action` (botão da topbar), `onMore`, `voltar` (`{ para, rotulo }`: mostra o botão **Voltar** no canto esquerdo da topbar, estilo da aba ativa do menu; `AppShell` mostra o **Voltar** em toda página: com `voltar` leva à página-mãe (use em toda página de detalhe); sem `voltar` volta no histórico do navegador e fica desabilitado se não houver histórico. Fora do shell (Login/Cadastro/Design System) use `BotaoVoltar` de `layout.tsx`) |
@@ -100,7 +100,7 @@ Sidebar fixa **220px** + coluna fluida; topbar **54px**; conteúdo com `gap-5`; 
 | `Section` | seção recolhível com título ("Equipes ▾") |
 | `DataTable` | tabela com cabeçalho `topbar`, colunas em grid, `role="table"` |
 
-### `src/components/modals.tsx`
+### `frontend/src/components/modals.tsx`
 `CriarEquipeModal`, `EditarEquipeModal`, `CriarFormularioModal`, `EditarFormularioModal` — referência de como compor um modal (título com ícone, campos, `ButtonBrown` + `ButtonGhost`, nota final).
 
 ---
@@ -117,7 +117,7 @@ Sidebar fixa **220px** + coluna fluida; topbar **54px**; conteúdo com `gap-5`; 
 
 ## 5. Telas do aluno (implementadas)
 
-Mesmo shell e mesmos componentes do professor; muda o **recorte** (menu, dados e ações). Código em `src/pages/Aluno.tsx`, regras em `src/data/aluno.ts`. O aluno **não tem design no Figma**: estas telas são uma proposta montada com o design system e devem ser validadas.
+Mesmo shell e mesmos componentes do professor; muda o **recorte** (menu, dados e ações). Código em `frontend/src/pages/Aluno.tsx`, regras em `frontend/src/data/aluno.ts`. O aluno **não tem design no Figma**: estas telas são uma proposta montada com o design system e devem ser validadas.
 
 | Professor | Aluno | Rota |
 |---|---|---|

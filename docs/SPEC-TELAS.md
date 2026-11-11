@@ -8,13 +8,13 @@ Sistema de autoavaliação para professores acompanharem **equipes (turmas)**, *
 - **Stack do projeto:** Vite + React 19 + TypeScript + Tailwind v4 (`@tailwindcss/vite`). Sem backend: usar dados mockados tipados.
 - **MCP:** servidor Figma em `.mcp.json`. Autentique com `/mcp` antes de rodar os prompts.
 
-> Regra do Figma MCP: para cada tela, chame `get_design_context` **com screenshot**, use o screenshot como alvo visual, baixe os assets retornados para `src/assets/` (nunca deixe URL temporária `figma.com/api/mcp/asset/...` no código) e adapte o React+Tailwind gerado às convenções deste projeto.
+> Regra do Figma MCP: para cada tela, chame `get_design_context` **com screenshot**, use o screenshot como alvo visual, baixe os assets retornados para `frontend/src/assets/` (nunca deixe URL temporária `figma.com/api/mcp/asset/...` no código) e adapte o React+Tailwind gerado às convenções deste projeto.
 
 ---
 
 ## 1. Design tokens
 
-Definir em `src/index.css` com `@theme` (Tailwind v4) e usar como utilitários (`bg-sidebar`, `text-ink` …) em vez de valores soltos.
+Definir em `frontend/src/index.css` com `@theme` (Tailwind v4) e usar como utilitários (`bg-sidebar`, `text-ink` …) em vez de valores soltos.
 
 ### Tipografia
 | Uso | Fonte | Observação |
@@ -138,7 +138,7 @@ Os quadros "TeamsPage" são nomes herdados; cada um é uma tela distinta acima.
 ## 4. Estrutura de código sugerida
 
 ```
-src/
+frontend/src/
   assets/            # SVGs/imagens baixados do Figma (blobs, fundo do login, ícones)
   components/
     layout/          # AppShell, Sidebar, Topbar, PageBanner, Tabs
@@ -165,12 +165,12 @@ Design: https://www.figma.com/design/6C4VTzYwxrg2DpZvmoMRtT/Sistema-de-Autoavali
 
 Passos:
 1. Configure fontes (Instrument Sans, Inter, Material Icons Round) e os tokens de cor/raio/sombra
-   da seção 1 em src/index.css (@theme). Instale react-router-dom.
+   da seção 1 em frontend/src/index.css (@theme). Instale react-router-dom.
 2. Monte o AppShell (Sidebar 220px + Topbar 54px + Banner) e os componentes ui/ reutilizáveis.
 3. Para CADA tela da tabela da seção 3, chame get_design_context (com screenshot) no node ID
-   indicado, baixe os assets para src/assets/ e implemente como componente React interativo
+   indicado, baixe os assets para frontend/src/assets/ e implemente como componente React interativo
    (filtros, busca, ordenação, abas, modais, show/hide de senha, seleção de cor, checkbox
-   "Postar ao criar formulário"), usando dados mockados tipados em src/data/.
+   "Postar ao criar formulário"), usando dados mockados tipados em frontend/src/data/.
 4. Não deixe URLs figma.com/api/mcp/asset no código. Não use posicionamento absoluto quando um
    layout flex/grid reproduz o design.
 5. Compare cada tela com o screenshot do Figma em 1440×810 e corrija diferenças.

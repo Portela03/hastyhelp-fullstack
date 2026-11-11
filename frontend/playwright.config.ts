@@ -27,7 +27,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'npm run start --prefix backend',
+      command: 'npm run start --prefix ../backend',
       url: `http://localhost:${PORTA_API}/api/health`,
       env: { PORT: String(PORTA_API), DATABASE_URL, JWT_SECRET: 'e2e', SEED: 'false' },
       reuseExistingServer: !process.env.CI,

@@ -4,7 +4,7 @@ Fonte de verdade do backend. **Spec primeiro**: cada regra (`R-xx`) e cada rota 
 
 - **Stack:** Node 24 · TypeScript strict · Express 5 · PostgreSQL 16 · Docker Compose · Vitest + Supertest.
 - **Pasta:** `backend/` (pacote próprio). API em `/api`, porta `3333`.
-- **Origem das funcionalidades:** telas do front (`docs/SPEC-TELAS.md`, `src/pages/*`) e requisitos RF/RNF de `CLAUDE.md`.
+- **Origem das funcionalidades:** telas do front (`docs/SPEC-TELAS.md`, `frontend/src/pages/*`) e requisitos RF/RNF de `CLAUDE.md`.
 - **Idioma:** domínio em pt-BR sem acento nos identificadores; mensagens de erro em pt-BR com acento.
 
 ## 1. Arquitetura (DDD)

@@ -10,7 +10,7 @@ Idioma: **português (pt-BR)** para UI, documentação, mensagens de commit e no
 - Roteamento: `react-router-dom`
 - Testes unitários/domínio: **Vitest** (+ Testing Library para componentes)
 - Testes E2E: **Playwright**
-- **Backend** em `backend/` (Node 24 + TypeScript + Express 5 + PostgreSQL + Docker, DDD): spec em [`docs/SPEC-BACKEND.md`](docs/SPEC-BACKEND.md) — **spec primeiro (SDD)**: mudou regra → atualiza a spec, depois teste (TDD), depois código. O front consome a API via `src/api/` e `src/store.tsx`.
+- **Backend** em `backend/` (Node 24 + TypeScript + Express 5 + PostgreSQL + Docker, DDD): spec em [`docs/SPEC-BACKEND.md`](docs/SPEC-BACKEND.md) — **spec primeiro (SDD)**: mudou regra → atualiza a spec, depois teste (TDD), depois código. O front consome a API via `frontend/src/api/` e `frontend/src/store.tsx`.
 
 Comandos (manter atualizados em `package.json`):
 
@@ -29,7 +29,7 @@ npm run api:test     # testes do backend (Vitest)
 
 Toda tela nova (inclusive as do aluno) usa os tokens e componentes já existentes. **Leia [`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md) antes de criar ou alterar qualquer UI**; a página viva fica em `/design-system`.
 
-- Componentes: `src/components/ui.tsx`, `layout.tsx`, `modals.tsx`. Tokens: `@theme` em `src/index.css`.
+- Componentes: `frontend/src/components/ui.tsx`, `layout.tsx`, `modals.tsx`. Tokens: `@theme` em `frontend/src/index.css`.
 - Não escreva hex solto nem crie um segundo shell/botão/campo: reutilize; se faltar algo, crie o token/componente, documente no design system e mostre em `/design-system`.
 
 ## Design (Figma)
@@ -37,7 +37,7 @@ Toda tela nova (inclusive as do aluno) usa os tokens e componentes já existente
 - MCP do Figma configurado em `.mcp.json` (autenticar com `/mcp`).
 - Spec completo das telas, tokens, rotas e node IDs: [`docs/SPEC-TELAS.md`](docs/SPEC-TELAS.md).
 - Arquivo: `6C4VTzYwxrg2DpZvmoMRtT`, frame `546:6577`. O Figma cobre apenas as telas do **professor** e o login/cadastro; as telas do **aluno** (N01–N06) não têm design: foram montadas com o design system (ver seção 5 de `docs/DESIGN-SYSTEM.md`) e precisam de validação.
-- Ao implementar uma tela: `get_design_context` com screenshot, baixar assets para `src/assets/` (nunca deixar URL temporária do Figma no código) e adaptar às convenções deste projeto.
+- Ao implementar uma tela: `get_design_context` com screenshot, baixar assets para `frontend/src/assets/` (nunca deixar URL temporária do Figma no código) e adaptar às convenções deste projeto.
 
 ## Domínio (necessidades e requisitos)
 
@@ -60,7 +60,7 @@ Toda tela nova (inclusive as do aluno) usa os tokens e componentes já existente
 Organizar por **contexto delimitado**, não por tipo técnico. Cada contexto tem camadas com dependência apontando para dentro (`ui → application → domain`; `infra` implementa interfaces do domínio).
 
 ```
-src/
+frontend/src/
   contexts/
     identidade/      # Usuário, Papel (Aluno|Professor), autenticação, autorização
     turmas/          # Turma (Equipe), Período letivo, Matrícula, convite
@@ -112,7 +112,7 @@ Regras:
 ## Convenções de código
 
 - TypeScript `strict`; sem `any` (usar `unknown` + estreitamento). Tipos de domínio explícitos, sem `enum` (preferir uniões literais).
-- Tailwind com tokens definidos em `src/index.css` (`@theme`); não espalhar hex soltos. Ver tokens em `docs/SPEC-TELAS.md`.
+- Tailwind com tokens definidos em `frontend/src/index.css` (`@theme`); não espalhar hex soltos. Ver tokens em `docs/SPEC-TELAS.md`.
 - Componentes funcionais pequenos; acessibilidade obrigatória (labels, foco visível, `role="dialog"` + `aria-modal` + Esc nos modais, `role="tablist"` nas abas).
 - Responsivo desde o início (mobile-first, breakpoints Tailwind); o Figma é 1440×810 mas RNF02 exige mobile.
 - Nomes de arquivos: componentes `PascalCase.tsx`; demais `kebab-case.ts`. Um caso de uso por arquivo, nome no infinitivo (`publicar-autoavaliacao.ts`).
