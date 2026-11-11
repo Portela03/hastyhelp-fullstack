@@ -86,9 +86,10 @@ const rota = (fn: Handler): RequestHandler => (req, res, next) => {
 const atorDe = (res: Response) => res.locals.ator as Ator
 const param = (req: Request, nome: string) => String(req.params[nome] ?? '')
 
-export function criarApp({ uc, infra }: Container, opcoes: { exporCaixaDeSaida?: boolean } = {}) {
+export function criarApp({ uc, infra }: Container, opcoes: { exporCaixaDeSaida?: boolean; origensPermitidas?: string[] } = {}) {
   const app = express()
-  app.use(cors())
+  // Sem origens configuradas, nenhuma origem externa é liberada (o front usa a mesma origem via proxy/rewrite).
+  app.use(cors({ origin: opcoes.origensPermitidas?.length ? opcoes.origensPermitidas : false }))
   app.use(express.json({ limit: '1mb' }))
 
   // Confere o token e se a sessão ainda está ativa (logout/redefinição de senha invalidam na hora).

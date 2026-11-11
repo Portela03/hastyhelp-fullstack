@@ -150,3 +150,20 @@ describe('API — autorização (RNF03/RNF04)', () => {
     await api.delete(`/api/turmas/${turma.id}`).set('Authorization', outro).expect(403)
   })
 })
+
+describe('API — CORS (RNF03)', () => {
+  const comOrigem = (origem: string, origensPermitidas?: string[]) => {
+    const app = criarApp(criarContainer(criarInfraMemoria()), origensPermitidas ? { origensPermitidas } : {})
+    return request(app).get('/api/health').set('Origin', origem)
+  }
+  it('não libera nenhuma origem externa por padrão', async () => {
+    const r = await comOrigem('https://site-qualquer.com').expect(200)
+    expect(r.headers['access-control-allow-origin']).toBeUndefined()
+  })
+  it('libera somente as origens configuradas', async () => {
+    const permitida = await comOrigem('https://app.exemplo.com', ['https://app.exemplo.com']).expect(200)
+    expect(permitida.headers['access-control-allow-origin']).toBe('https://app.exemplo.com')
+    const outra = await comOrigem('https://invasor.com', ['https://app.exemplo.com']).expect(200)
+    expect(outra.headers['access-control-allow-origin']).toBeUndefined()
+  })
+})

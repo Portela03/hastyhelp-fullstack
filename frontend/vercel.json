@@ -1,6 +1,10 @@
 {
     "rewrites": [
         {
+            "source": "/api/:path*",
+            "destination": "https://hastyhelp-api-2026-dee0a6fva0aqf9h8.chilecentral-01.azurewebsites.net/api/:path*"
+        },
+        {
             "source": "/(.*)",
             "destination": "/"
         }
