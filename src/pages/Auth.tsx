@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import bg from '../assets/figma/login-bg.png'
 import { BotaoVoltar } from '../components/layout'
 import { ButtonBrown, ButtonGhost, Field, PasswordField, cx } from '../components/ui'
-import { CONVITES, TURMAS_ALUNO } from '../data/aluno'
+import { api, mensagemDeErro } from '../api/client'
 import type { Papel } from '../data/aluno'
 import { useStore } from '../store'
 
@@ -22,12 +22,12 @@ function AuthLayout({ titulo, children, voltarPara }: { titulo: string; children
   )
 }
 
-function AuthButtons({ principal, alternativa, para }: { principal: string; alternativa: string; para: string }) {
+function AuthButtons({ principal, alternativa, para, desabilitado }: { principal: string; alternativa: string; para: string; desabilitado?: boolean }) {
   const navigate = useNavigate();
 
   return (
     <div className="flex w-full gap-3">
-      <ButtonBrown type="submit">
+      <ButtonBrown type="submit" disabled={desabilitado}>
         {principal}
       </ButtonBrown>
 
@@ -73,11 +73,21 @@ export function Login() {
   const [papel, setPapel] = useState<Papel>('professor')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
+  const [erro, setErro] = useState('')
+  const [enviando, setEnviando] = useState(false)
 
-  function enviar(e: FormEvent) {
+  async function enviar(e: FormEvent) {
     e.preventDefault()
-    entrar(papel)
-    navigate(papel === 'aluno' ? '/aluno/turmas' : '/equipes', { replace: true })
+    setErro('')
+    setEnviando(true)
+    try {
+      await entrar(email, senha, papel)
+      navigate(papel === 'aluno' ? '/aluno/turmas' : '/equipes', { replace: true })
+    } catch (e) {
+      setErro(mensagemDeErro(e))
+    } finally {
+      setEnviando(false)
+    }
   }
 
   return (
@@ -94,8 +104,13 @@ export function Login() {
               Esqueceu a senha?
             </button>
           </div>
+          {erro && (
+            <p role="alert" className="text-[14px] text-diff-c">
+              {erro}
+            </p>
+          )}
         </div>
-        <AuthButtons principal="Concluir" alternativa="Cadastrar" para="/cadastro" />
+        <AuthButtons principal="Concluir" alternativa="Cadastrar" para="/cadastro" desabilitado={enviando} />
       </form>
     </AuthLayout>
   )
@@ -104,25 +119,49 @@ export function Login() {
 export function Cadastro({ convite }: { convite?: boolean }) {
   const navigate = useNavigate()
   const { codigo } = useParams()
-  const turma = convite ? TURMAS_ALUNO.find((t) => t.id === CONVITES[codigo ?? '']) : undefined
+  const { cadastrar } = useStore()
+  const [turma, setTurma] = useState<{ nome: string; periodo: string } | null>(null)
+  const [conviteCarregado, setConviteCarregado] = useState(!convite)
+  const [papel, setPapel] = useState<Papel>(convite ? 'aluno' : 'professor')
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [confirma, setConfirma] = useState('')
   const [erro, setErro] = useState('')
+  const [enviando, setEnviando] = useState(false)
 
-  function enviar(e: FormEvent) {
+  useEffect(() => {
+    if (!convite) return
+    let ativo = true
+    api<{ nome: string; periodo: string }>('GET', `/auth/convites/${encodeURIComponent(codigo ?? '')}`)
+      .then((t) => ativo && setTurma(t))
+      .catch(() => ativo && setTurma(null))
+      .finally(() => ativo && setConviteCarregado(true))
+    return () => {
+      ativo = false
+    }
+  }, [convite, codigo])
+
+  async function enviar(e: FormEvent) {
     e.preventDefault()
     if (convite && !turma) return setErro('Peça um novo link de convite ao professor.')
     if (senha.length < 8) return setErro('A senha deve ter pelo menos 8 caracteres.')
     if (senha !== confirma) return setErro('As senhas não conferem.')
     setErro('')
-    navigate('/login')
+    setEnviando(true)
+    try {
+      await cadastrar({ nome, email, senha, confirmacaoSenha: confirma, papel, ...(convite && codigo ? { codigoConvite: codigo } : {}) })
+      navigate('/login')
+    } catch (e) {
+      setErro(mensagemDeErro(e))
+    } finally {
+      setEnviando(false)
+    }
   }
 
   return (
     <AuthLayout titulo="Cadastrar" voltarPara="/login">
-      {convite && (
+      {convite && conviteCarregado && (
         <p
           role="status"
           className={cx('-mt-4 w-full rounded-lg border px-3 py-2 text-[14px]', turma ? 'border-line-input bg-panel text-ink' : 'border-diff-c text-diff-c')}
@@ -132,6 +171,7 @@ export function Cadastro({ convite }: { convite?: boolean }) {
       )}
       <form onSubmit={enviar} className="flex w-full flex-col gap-8">
         <div className="flex flex-col gap-2">
+          {!convite && <EscolhaPapel papel={papel} onChange={setPapel} />}
           <Field label="Nome" name="nome" placeholder="Nome completo" value={nome} onChange={(e) => setNome(e.target.value)} required />
           <Field label="Email" type="email" name="email" placeholder="Digite seu email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           <div className="flex flex-col gap-1">
@@ -144,7 +184,7 @@ export function Cadastro({ convite }: { convite?: boolean }) {
             </p>
           )}
         </div>
-        <AuthButtons principal="Cadastrar" alternativa="Login" para="/login" />
+        <AuthButtons principal="Cadastrar" alternativa="Login" para="/login" desabilitado={enviando} />
       </form>
     </AuthLayout>
   )

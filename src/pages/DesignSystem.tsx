@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { CORES_EQUIPE } from '../data/mock'
-import type { StatusFormulario } from '../data/mock'
+import { CORES_EQUIPE } from '../data/tipos'
+import type { StatusFormulario } from '../data/tipos'
 import { Banner, BotaoVoltar, DataTable, Section, Toolbar } from '../components/layout'
 import {
   Avatar,
@@ -51,7 +51,7 @@ const CORES = [
   ['diff-c', '#ee5e5e'],
 ] as const
 
-const STATUS: StatusFormulario[] = ['ativo', 'agendado', 'inativo', 'rascunho']
+const STATUS: StatusFormulario[] = ['agendado', 'rascunho', 'fechado', 'aberto', 'concluido']
 
 function Bloco({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
@@ -156,7 +156,7 @@ export function DesignSystem() {
         <Toolbar>
           <div className="flex flex-wrap items-center gap-3">
             <SearchBox value={busca} onChange={setBusca} placeholder="Buscar..." />
-            <FilterSelect label="Status" value={filtro} onChange={setFiltro} options={['Ativo', 'Inativo']} />
+            <FilterSelect label="Status" value={filtro} onChange={setFiltro} options={['Aberto', 'Fechado']} />
             <FilterSelect label="Aluno" value="" onChange={() => {}} options={[]} disabled />
           </div>
           <SortButton icon={sortIcon} label="Data de publicação" />

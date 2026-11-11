@@ -1,32 +1,32 @@
-# React + TypeScript + Vite
+# HastyHelp
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Sistema de autoavaliação para alunos e professores. O aluno indica seu nível de compreensão sobre conteúdos e habilidades; o professor cria as autoavaliações, acompanha resultados individuais e coletivos e identifica dificuldades.
 
-Currently, two official plugins are available:
+- **Front:** Vite + React 19 + TypeScript + Tailwind v4 (`src/`)
+- **Back:** Node 24 + TypeScript + Express 5 + PostgreSQL (`backend/`), organizado em DDD
+- **Spec do backend (SDD):** [`docs/SPEC-BACKEND.md`](docs/SPEC-BACKEND.md) — cada regra `R-xx` vira teste com o mesmo ID
+- **Design system:** [`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md) · telas: [`docs/SPEC-TELAS.md`](docs/SPEC-TELAS.md)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Rodando
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+docker compose up -d db          # PostgreSQL em localhost:5433
+npm install && npm install --prefix backend
+SEED=true npm run api            # API em :3333 (migra o banco e cria dados de demonstração)
+npm run dev                      # front em :5173 (proxy /api → :3333)
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Tudo em Docker (banco + API): `docker compose up --build` (API em `http://localhost:3333/api`).
+
+Logins de demonstração (senha `senha1234`): professor `alberto@hastyhelp.dev`; alunos `sarah.chen@`, `james.park@`, `michael.torres@`, `lisa.anderson@hastyhelp.dev`. Links de convite: `/convite/pdm-2026` e `/convite/ea-2026`.
+
+## Testes
+
+```bash
+npm run api:test                 # backend: domínio, casos de uso e API (Vitest + Supertest, em memória)
+npm --prefix backend run test:db # repositórios PostgreSQL (precisa do banco; cria/usa hastyhelp_teste)
+npm run test:e2e                 # Playwright: front + API + PostgreSQL reais (usa o banco hastyhelp_e2e)
+npm run lint && npm run build
+```
+
+Bancos auxiliares (uma vez): `docker compose exec db psql -U hastyhelp -d postgres -c "create database hastyhelp_teste"` e o mesmo para `hastyhelp_e2e`.

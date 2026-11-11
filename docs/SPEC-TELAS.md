@@ -45,7 +45,7 @@ Escala usada: 12 (rótulo do menu, uppercase, tracking .24px) · 14 (filtros) ·
 | `avatar-prof` | `#15593c` | avatar do professor "A" |
 | Cores de equipe (6) | `#8fcbc5` (padrão, teal) · laranja · vermelho · verde · rosa · roxo | seletor "Cor" no modal Editar Equipe |
 | Dificuldade I / P / C | azul `#5ab0d8` · marrom `#a08d77` · vermelho `#f0606a` | barras e donut (valores aproximados; confirmar via `get_design_context`) |
-| Status | Ativo (verde) · Agendado (azul) · Inativo (cinza) · Rascunho (amarelo/oliva) | *pill* com bolinha; ver tela Formulários |
+| Status | Agendado (azul) · Rascunho (amarelo/oliva) · Fechado (cinza) · Aberto (verde) · Concluído (lilás) | *pill* com bolinha; ver tela Formulários |
 
 Cores marcadas "aproximado/laranja/rosa…" devem ser lidas do Figma no `get_design_context` da tela indicada — não inventar.
 

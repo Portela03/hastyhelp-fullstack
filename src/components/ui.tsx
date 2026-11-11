@@ -3,10 +3,11 @@ import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react
 import dotAgendado from '../assets/figma/dot-agendado.svg'
 import dotAtivo from '../assets/figma/dot-ativo.svg'
 import dotInativo from '../assets/figma/dot-inativo.svg'
+import dotConcluido from '../assets/figma/dot-concluido.svg'
 import dotRascunho from '../assets/figma/dot-rascunho.svg'
 import { ROTULO_STATUS_ALUNO } from '../data/aluno'
 import type { StatusAluno } from '../data/aluno'
-import type { StatusFormulario } from '../data/mock'
+import type { StatusFormulario } from '../data/tipos'
 import { createPortal } from 'react-dom'
 
 export function cx(...c: Array<string | false | null | undefined>) {
@@ -214,6 +215,7 @@ const TONS = {
   verde: { dot: dotAtivo, bg: 'bg-[#eaf7ec]', text: 'text-[#2f7a3f]' },
   azul: { dot: dotAgendado, bg: 'bg-[#eaf2f7]', text: 'text-[#2f5b7a]' },
   cinza: { dot: dotInativo, bg: 'bg-black/8', text: 'text-black/46' },
+  lilas: { dot: dotConcluido, bg: 'bg-[#f3eaf7]', text: 'text-[#5b2f7a]' },
   amarelo: { dot: dotRascunho, bg: 'bg-[#f7f5ea]', text: 'text-[#7a712f]' },
 } as const
 
@@ -230,10 +232,11 @@ export function Pill({ tom, children }: { tom: Tom; children: ReactNode }) {
 }
 
 const STATUS: Record<StatusFormulario, { label: string; tom: Tom }> = {
-  ativo: { label: 'Ativo', tom: 'verde' },
   agendado: { label: 'Agendado', tom: 'azul' },
-  inativo: { label: 'Inativo', tom: 'cinza' },
   rascunho: { label: 'Rascunho', tom: 'amarelo' },
+  fechado: { label: 'Fechado', tom: 'cinza' },
+  aberto: { label: 'Aberto', tom: 'verde' },
+  concluido: { label: 'Concluído', tom: 'lilas' },
 }
 
 export function StatusPill({ status }: { status: StatusFormulario }) {

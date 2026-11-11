@@ -22,10 +22,25 @@ const inicioDo = (papel: Papel) => (papel === 'aluno' ? '/aluno/turmas' : '/equi
 
 /** Só deixa passar quem está logado com o papel esperado (RNF03). */
 function Protegida({ papel }: { papel: Papel }) {
-  const { sessao } = useStore()
+  const { sessao, carregando } = useStore()
   if (!sessao) return <Navigate to="/login" replace />
   if (sessao.papel !== papel) return <Navigate to={inicioDo(sessao.papel)} replace />
+  if (carregando) return <p role="status" className="p-8 text-[16px] text-muted">Carregando…</p>
   return <Outlet />
+}
+
+/** Erros de ações sem formulário próprio (ex.: fechar um formulário) aparecem aqui. */
+function AvisoGlobal() {
+  const { aviso, limparAviso } = useStore()
+  if (!aviso) return null
+  return (
+    <div role="alert" className="fixed bottom-4 left-1/2 z-50 flex max-w-[90vw] -translate-x-1/2 items-center gap-3 rounded-lg border border-diff-c bg-white px-4 py-3 text-[16px] text-diff-c shadow-card-hover">
+      <span>{aviso}</span>
+      <button type="button" onClick={limparAviso} aria-label="Fechar aviso" className="cursor-pointer font-semibold">
+        ×
+      </button>
+    </div>
+  )
 }
 
 function Inicio() {
@@ -35,6 +50,8 @@ function Inicio() {
 
 function App() {
   return (
+    <>
+    <AvisoGlobal />
     <Routes>
       <Route path="/" element={<Inicio />} />
       <Route path="/login" element={<Login />} />
@@ -78,6 +95,7 @@ function App() {
 
       <Route path="*" element={<Inicio />} />
     </Routes>
+    </>
   )
 }
 

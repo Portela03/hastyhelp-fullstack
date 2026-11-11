@@ -10,7 +10,7 @@ Idioma: **português (pt-BR)** para UI, documentação, mensagens de commit e no
 - Roteamento: `react-router-dom`
 - Testes unitários/domínio: **Vitest** (+ Testing Library para componentes)
 - Testes E2E: **Playwright**
-- Sem backend por enquanto: persistência atrás de interfaces (repositórios) com implementação em memória/`localStorage`
+- **Backend** em `backend/` (Node 24 + TypeScript + Express 5 + PostgreSQL + Docker, DDD): spec em [`docs/SPEC-BACKEND.md`](docs/SPEC-BACKEND.md) — **spec primeiro (SDD)**: mudou regra → atualiza a spec, depois teste (TDD), depois código. O front consome a API via `src/api/` e `src/store.tsx`.
 
 Comandos (manter atualizados em `package.json`):
 
@@ -20,7 +20,9 @@ npm run build        # tsc -b && vite build
 npm run lint
 npm run test         # vitest (watch)
 npm run test:run     # vitest uma vez (CI)
-npm run test:e2e     # playwright test
+npm run test:e2e     # playwright test (front + API + PostgreSQL reais)
+npm run api          # API (backend/); docker compose up -d db antes
+npm run api:test     # testes do backend (Vitest)
 ```
 
 ## Design System (obrigatório)

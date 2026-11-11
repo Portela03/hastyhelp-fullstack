@@ -20,7 +20,6 @@ import {
 } from '../components/ui'
 import {
   ROTULO_STATUS_ALUNO,
-  TURMAS_ALUNO,
   acertou,
   completa,
   editavel,
@@ -29,8 +28,8 @@ import {
   totalRespondidas,
 } from '../data/aluno'
 import type { AutoavaliacaoAluno } from '../data/aluno'
-import { PERIODOS } from '../data/mock'
-import type { Dificuldade, Equipe, Pergunta } from '../data/mock'
+import { PERIODOS } from '../data/tipos'
+import type { Dificuldade, Equipe, Pergunta } from '../data/tipos'
 import { useStore } from '../store'
 
 /* Auxiliares */
@@ -43,10 +42,6 @@ function paraData(s?: string) {
 
 function media(valores: number[]) {
   return valores.length ? valores.reduce((a, b) => a + b, 0) / valores.length : undefined
-}
-
-function turmaDe(id: string): Equipe | undefined {
-  return TURMAS_ALUNO.find((t) => t.id === id)
 }
 
 function estatisticas(lista: AutoavaliacaoAluno[]) {
@@ -73,6 +68,8 @@ const notaOuTraco = (n?: number) => (n === undefined ? '—' : formatarNota(n))
 /* Linha de autoavaliação */
 
 function AutoavaliacaoRow({ a, mostrarTurma }: { a: AutoavaliacaoAluno; mostrarTurma?: boolean }) {
+  const { equipes: turmasAluno } = useStore()
+  const turmaDe = (id: string): Equipe | undefined => turmasAluno.find((t) => t.id === id)
   const navigate = useNavigate()
   const turma = turmaDe(a.turmaId)
   const abrir = () => navigate(`/aluno/autoavaliacoes/${a.id}`)
@@ -127,6 +124,7 @@ function ListaAutoavaliacoes({ itens, mostrarTurma }: { itens: AutoavaliacaoAlun
 }
 
 function useFiltroAutoavaliacoes(base: AutoavaliacaoAluno[]) {
+  const { equipes: turmasAluno } = useStore()
   const [busca, setBusca] = useState('')
   const [status, setStatus] = useState('')
   const [turma, setTurma] = useState('')
@@ -135,21 +133,21 @@ function useFiltroAutoavaliacoes(base: AutoavaliacaoAluno[]) {
     const filtrados = base
       .filter((a) => a.titulo.toLowerCase().includes(busca.toLowerCase()))
       .filter((a) => !status || ROTULO_STATUS_ALUNO[a.status] === status)
-      .filter((a) => !turma || turmaDe(a.turmaId)?.nome === turma)
+      .filter((a) => !turma || turmasAluno.find((t) => t.id === a.turmaId)?.nome === turma)
     return filtrados.sort((a, b) => (asc ? 1 : -1) * (paraData(a.prazo ?? a.enviadoEm) - paraData(b.prazo ?? b.enviadoEm)))
-  }, [base, busca, status, turma, asc])
+  }, [base, busca, status, turma, asc, turmasAluno])
   return { busca, setBusca, status, setStatus, turma, setTurma, asc, setAsc, itens }
 }
 
 /* Turmas */
 
 export function AlunoTurmas() {
-  const { autoavaliacoes } = useStore()
+  const { autoavaliacoes, equipes: turmasAluno } = useStore()
   const navigate = useNavigate()
   const [busca, setBusca] = useState('')
   const [periodo, setPeriodo] = useState('')
   const [asc, setAsc] = useState(true)
-  const lista = TURMAS_ALUNO.filter((t) => t.nome.toLowerCase().includes(busca.toLowerCase()))
+  const lista = turmasAluno.filter((t) => t.nome.toLowerCase().includes(busca.toLowerCase()))
     .filter((t) => !periodo || t.periodo === periodo)
     .sort((a, b) => (asc ? 1 : -1) * a.nome.localeCompare(b.nome, 'pt-BR'))
 
@@ -212,7 +210,8 @@ export function AlunoTurmas() {
 
 export function AlunoTurmaDetalhe() {
   const { id } = useParams()
-  const { autoavaliacoes } = useStore()
+  const { autoavaliacoes, equipes: turmasAluno } = useStore()
+  const turmaDe = (id: string): Equipe | undefined => turmasAluno.find((t) => t.id === id)
   const turma = turmaDe(id ?? '')
   if (!turma) return <Navigate to="/aluno/turmas" replace />
   const minhas = autoavaliacoes.filter((a) => a.turmaId === turma.id)
@@ -343,7 +342,7 @@ export function AlunoTurmaResumo() {
 /* Lista geral de autoavaliações */
 
 export function AlunoAutoavaliacoes() {
-  const { autoavaliacoes } = useStore()
+  const { autoavaliacoes, equipes: turmasAluno } = useStore()
   const f = useFiltroAutoavaliacoes(autoavaliacoes)
   return (
     <AppShell>
@@ -351,7 +350,7 @@ export function AlunoAutoavaliacoes() {
       <Toolbar>
         <div className="flex flex-wrap items-center gap-3">
           <SearchBox value={f.busca} onChange={f.setBusca} placeholder="Buscar autoavaliações..." />
-          <FilterSelect label="Turma" all="Todas" value={f.turma} onChange={f.setTurma} options={TURMAS_ALUNO.map((t) => t.nome)} />
+          <FilterSelect label="Turma" all="Todas" value={f.turma} onChange={f.setTurma} options={turmasAluno.map((t) => t.nome)} />
           <FilterSelect label="Status" value={f.status} onChange={f.setStatus} options={Object.values(ROTULO_STATUS_ALUNO)} />
         </div>
         <SortButton icon={sortIcon} label="Prazo" onClick={() => f.setAsc((v) => !v)} />
@@ -446,7 +445,8 @@ function FaixaProgresso({ a }: { a: AutoavaliacaoAluno }) {
 
 export function AlunoAutoavaliacaoDetalhe() {
   const { id } = useParams()
-  const { autoavaliacoes } = useStore()
+  const { autoavaliacoes, equipes: turmasAluno } = useStore()
+  const turmaDe = (id: string): Equipe | undefined => turmasAluno.find((t) => t.id === id)
   const a = autoavaliacoes.find((x) => x.id === id)
   if (!a) return <Navigate to="/aluno/autoavaliacoes" replace />
   const turma = turmaDe(a.turmaId)
@@ -507,12 +507,13 @@ function Responder({ a }: { a: AutoavaliacaoAluno }) {
   const navigate = useNavigate()
   const [etapa, setEtapa] = useState<'responder' | 'revisar'>('responder')
   const [confirmar, setConfirmar] = useState(false)
+  const [observacao, setObservacao] = useState('')
   const pronta = completa(a)
 
-  function enviar() {
-    enviarAutoavaliacao(a.id)
+  async function enviar() {
+    const ok = await enviarAutoavaliacao(a.id, observacao.trim() || undefined)
     setConfirmar(false)
-    navigate(`/aluno/autoavaliacoes/${a.id}/resultado`)
+    if (ok) navigate(`/aluno/autoavaliacoes/${a.id}/resultado`)
   }
 
   if (etapa === 'revisar') {
@@ -540,6 +541,20 @@ function Responder({ a }: { a: AutoavaliacaoAluno }) {
               )
             })}
           </ol>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="observacao" className="text-[16px] font-semibold text-ink">
+              Observações (opcional)
+            </label>
+            <textarea
+              id="observacao"
+              value={observacao}
+              onChange={(e) => setObservacao(e.target.value)}
+              maxLength={500}
+              rows={3}
+              placeholder="Comentários ou dúvidas para o professor"
+              className="rounded-lg border border-line-input bg-white px-3 py-2 text-[16px] text-ink outline-none focus-visible:border-ink"
+            />
+          </div>
         </section>
         <div className="flex w-full max-w-[520px] flex-col gap-2">
           <div className="flex gap-3">
@@ -638,14 +653,15 @@ export function AlunoResultado() {
 /* Desempenho (métricas do aluno) */
 
 export function AlunoDesempenho() {
-  const { autoavaliacoes } = useStore()
+  const { autoavaliacoes, equipes: turmasAluno } = useStore()
+  const turmaDe = (id: string): Equipe | undefined => turmasAluno.find((t) => t.id === id)
   const [periodo, setPeriodo] = useState('2026/02')
   const [turma, setTurma] = useState('')
   const escopo = autoavaliacoes
     .filter((a) => !turma || turmaDe(a.turmaId)?.nome === turma)
     .filter((a) => !periodo || turmaDe(a.turmaId)?.periodo === periodo)
   const est = estatisticas(escopo)
-  const porTurma = TURMAS_ALUNO.filter((t) => !turma || t.nome === turma).map((t) => {
+  const porTurma = turmasAluno.filter((t) => !turma || t.nome === turma).map((t) => {
     const e = estatisticas(escopo.filter((a) => a.turmaId === t.id))
     return { turma: t, nota: e.notaMedia }
   })
@@ -660,7 +676,7 @@ export function AlunoDesempenho() {
       <Toolbar>
         <div className="flex flex-wrap items-center gap-3">
           <FilterSelect label="Período" value={periodo} onChange={setPeriodo} options={[...PERIODOS]} />
-          <FilterSelect label="Turma" all="Todas" value={turma} onChange={setTurma} options={TURMAS_ALUNO.map((t) => t.nome)} />
+          <FilterSelect label="Turma" all="Todas" value={turma} onChange={setTurma} options={turmasAluno.map((t) => t.nome)} />
         </div>
       </Toolbar>
       <section className="flex flex-col gap-[18px] rounded-xl border border-line bg-white p-5">

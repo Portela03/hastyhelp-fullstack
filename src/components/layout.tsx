@@ -25,7 +25,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { sessao } = useStore()
   const aluno = sessao?.papel === 'aluno'
   const NAV = aluno ? NAV_ALUNO : NAV_PROFESSOR
-  const nome = sessao?.nome ?? 'Alberto'
+  const nome = sessao?.nome ?? ''
   const [perfilAberto, setPerfilAberto] = useState(false)
   
   return (

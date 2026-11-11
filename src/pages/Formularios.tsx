@@ -4,11 +4,14 @@ import sortIcon from '../assets/figma/sort.svg'
 import { AppShell, Banner, DataTable, Section, TabBar, Toolbar } from '../components/layout'
 import { CriarFormularioModal, EditarFormularioModal } from '../components/modals'
 import { Avatar, ButtonPrimary, DifficultyLetter, FilterSelect, KpiCard, Panel, SearchBox, SortButton, StatusPill, TeamBadge, cx, OptionsMenu } from '../components/ui'
-import { DIFICULDADES_GERAIS, OBSERVACOES, PERIODOS } from '../data/mock'
-import type { Formulario, StatusFormulario } from '../data/mock'
+import { api } from '../api/client'
+import { useApi } from '../api/use-api'
+import { PERIODOS } from '../data/tipos'
+import type { Dificuldade, Formulario, StatusFormulario } from '../data/tipos'
+import { acoesDeStatus } from './Equipes'
 import { useStore } from '../store'
 
-const ROTULO_STATUS: Record<StatusFormulario, string> = { ativo: 'Ativo', agendado: 'Agendado', inativo: 'Inativo', rascunho: 'Rascunho' }
+const ROTULO_STATUS: Record<StatusFormulario, string> = { agendado: 'Agendado', rascunho: 'Rascunho', fechado: 'Fechado', aberto: 'Aberto', concluido: 'Concluído' }
 
 /* Lista */
 
@@ -117,46 +120,49 @@ export function Formularios() {
 
 /* Detalhe */
 
-const TITULO_DETALHE = 'Teste Algebra Linear - Média, mediana e moda'
-
 export function FormularioDetalhe() {
   const { id } = useParams()
-  const { formularios, equipes, removerFormulario } = useStore()  
+  const { formularios, equipes, removerFormulario, atualizarFormulario, executar } = useStore()
+  const navigate = useNavigate()
   const form = formularios.find((f) => f.id === id)
   const [editar, setEditar] = useState(false)
+  const [mensagem, setMensagem] = useState('')
   if (!form) return <Navigate to="/avaliacoes" replace />
   const equipe = equipes.find((e) => e.id === form.equipeId)
   const base = `/avaliacoes/${form.id}`
-  const titulo = form.titulo === 'Teste' ? TITULO_DETALHE : form.titulo
+
+  const notificar = () =>
+    executar(async () => {
+      const r = await api<{ notificados: number }>('POST', `/formularios/${form.id}/notificar-pendentes`)
+      setMensagem(r.notificados === 0 ? 'Nenhum aluno pendente para notificar.' : `${r.notificados} ${r.notificados === 1 ? 'aluno notificado' : 'alunos notificados'}.`)
+    })
 
   return (
     <AppShell
       voltar={{ para: '/avaliacoes', rotulo: 'Avaliações' }}
       action={
         <div className="flex items-center gap-3">
-          <ButtonPrimary icon="outgoing_mail" iconRound={false} className="!text-[18px]"> Notificar pendentes </ButtonPrimary>
+          <ButtonPrimary icon="outgoing_mail" iconRound={false} className="!text-[18px]" aria-label="Notificar pendentes" onClick={notificar}>
+            <span className="hidden sm:inline">Notificar pendentes</span>
+          </ButtonPrimary>
 
           <OptionsMenu
-            label={`Opções do formulário ${titulo}`}
+            label={`Opções do formulário ${form.titulo}`}
             items={[
               {
                 label: 'Editar formulário',
                 icon: 'edit',
                 onClick: () => setEditar(true),
               },
-              {
-                label: 'Ver como aluno',
-                icon: 'visibility',
-                onClick: () => {
-                  // implementar visualização do formulário como aluno
-                },
-              },
+              ...acoesDeStatus(form, (status) => executar(() => atualizarFormulario(form.id, { status }))),
               {
                 label: 'Excluir formulário',
                 icon: 'delete',
                 destructive: true,
-                onClick: () => {
-                  removerFormulario(form.id)
+                onClick: async () => {
+                  if (!window.confirm(`Excluir o formulário "${form.titulo}"? As respostas dos alunos também serão apagadas.`)) return
+                  await removerFormulario(form.id)
+                  navigate('/avaliacoes', { replace: true })
                 },
               },
             ]}
@@ -164,12 +170,17 @@ export function FormularioDetalhe() {
         </div>
       }
     >
-      <Banner titulo={titulo} subtitulo={`Algebra Linear - ${equipe?.periodo ?? form.periodo}`}>
+      <Banner titulo={form.titulo} subtitulo={`${equipe?.nome ?? ''} - ${equipe?.periodo ?? form.periodo}`}>
         <div className="flex flex-col items-center text-[20px]">
           <span>Maior dificuldade</span>
-          <strong>P</strong>
+          <strong>{form.maiorDificuldade ?? '—'}</strong>
         </div>
       </Banner>
+      {mensagem && (
+        <p role="status" className="text-[16px] text-ink">
+          {mensagem}
+        </p>
+      )}
       <TabBar
         tabs={[
           { to: base, label: 'Formulário', end: true },
@@ -194,7 +205,7 @@ export function FormularioPerguntas() {
     <>
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-white p-4">
         <StatusPill status={form.status} />
-        <span className="text-[16px] text-muted">Publicado em 12/08/26</span>
+        <span className="text-[16px] text-muted">{form.status === 'rascunho' || form.status === 'agendado' ? 'Ainda não publicado' : `Publicado em ${form.publicadoEm ?? form.data}`}</span>
         <div className="relative h-8 min-w-[240px] flex-1 overflow-hidden rounded-lg border border-card-line bg-white">
           <div className="absolute inset-y-0 left-0 bg-[#e6dacd]" style={{ width: `${pct}%` }} />
           <span className="relative flex h-full items-center justify-center text-[14px] font-medium text-ink">
@@ -244,16 +255,40 @@ function AlunoCell({ nome, cor, iniciais }: { nome: string; cor: string; iniciai
   )
 }
 
+const CORES_AVATAR = ['#a67b5b', '#3b82f6', '#ef4444', '#8b5cf6', '#15593c', '#df8bb3']
+const corDe = (i: number) => CORES_AVATAR[i % CORES_AVATAR.length] ?? '#a67b5b'
+const iniciaisDe = (nome: string) =>
+  nome
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join('')
+    .toUpperCase()
+const formatarNota = (n: number | null) => (n === null ? '—' : n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }))
+
+interface AlunosFormularioDTO {
+  responderam: Array<{ id: string; nome: string; nota: number | null; nivel: Dificuldade | null }>
+  visualizaram: Array<{ id: string; nome: string }>
+  pendentes: Array<{ id: string; nome: string }>
+}
+
 export function FormularioAlunos() {
-  useForm()
+  const form = useForm()
+  const { dados, erro } = useApi<AlunosFormularioDTO>(`/formularios/${form.id}/alunos`, form)
+  if (erro) return <p role="alert" className="text-[16px] text-diff-c">{erro}</p>
+  if (!dados) return <p role="status" className="text-[16px] text-muted">Carregando…</p>
+  const total = dados.responderam.length + dados.visualizaram.length + dados.pendentes.length
   const menu = (nome: string) => (
     <button type="button" aria-label={`Ações de ${nome}`} className="cursor-pointer font-inter">
       ...
     </button>
   )
+  const simples = (lista: Array<{ id: string; nome: string }>, deslocamento: number) =>
+    lista.map((a, i) => [<AlunoCell key={a.id} nome={a.nome} cor={corDe(i + deslocamento)} iniciais={iniciaisDe(a.nome)} />])
   return (
     <div className="flex flex-col gap-4">
-      <Section titulo="Responderam (2/4)">
+      <Section titulo={`Responderam (${dados.responderam.length}/${total})`}>
         <DataTable
           colunas={[
             { titulo: 'Aluno' },
@@ -261,38 +296,61 @@ export function FormularioAlunos() {
             { titulo: 'Maior Dificuldade', largura: '200px', centro: true },
             { titulo: 'Ação', largura: '120px', centro: true },
           ]}
-          linhas={[
-            [<AlunoCell key="a" nome="Sarah Chen" cor="#a67b5b" iniciais="SC" />, <strong key="b">7,5</strong>, 'Dificuldade 1', menu('Sarah Chen')],
-            [<AlunoCell key="a" nome="James Park" cor="#3b82f6" iniciais="JP" />, <strong key="b">5,5</strong>, 'Dificuldade 3', menu('James Park')],
-          ]}
+          linhas={dados.responderam.map((a, i) => [
+            <AlunoCell key={a.id} nome={a.nome} cor={corDe(i)} iniciais={iniciaisDe(a.nome)} />,
+            <strong key="b">{formatarNota(a.nota)}</strong>,
+            a.nivel ? <DifficultyLetter key="n" letra={a.nivel} className="!font-normal" /> : '—',
+            menu(a.nome),
+          ])}
         />
       </Section>
-      <Section titulo="Visualizaram (1/4)">
-        <DataTable colunas={[{ titulo: 'Aluno' }]} linhas={[[<AlunoCell key="a" nome="Michael Torres" cor="#ef4444" iniciais="MT" />]]} />
+      <Section titulo={`Visualizaram (${dados.visualizaram.length}/${total})`}>
+        <DataTable colunas={[{ titulo: 'Aluno' }]} linhas={simples(dados.visualizaram, 2)} />
       </Section>
-      <Section titulo="Pendente (1/4)">
-        <DataTable colunas={[{ titulo: 'Aluno' }]} linhas={[[<AlunoCell key="a" nome="Lisa Anderson" cor="#8b5cf6" iniciais="LA" />]]} />
+      <Section titulo={`Pendente (${dados.pendentes.length}/${total})`}>
+        <DataTable colunas={[{ titulo: 'Aluno' }]} linhas={simples(dados.pendentes, 4)} />
       </Section>
     </div>
   )
 }
 
 const GRUPOS = [
-  { letra: 'I', valor: 40, cor: 'bg-diff-i' },
-  { letra: 'P', valor: 58, cor: 'bg-diff-p' },
-  { letra: 'C', valor: 20, cor: 'bg-diff-c' },
-]
+  { letra: 'I', cor: 'bg-diff-i' },
+  { letra: 'P', cor: 'bg-diff-p' },
+  { letra: 'C', cor: 'bg-diff-c' },
+] as const
+
+interface ResumoFormularioDTO {
+  respondidos: number
+  total: number
+  taxaResposta: number
+  notaMedia: number | null
+  totalObservacoes: number
+  observacoes: Array<{ texto: string; alunos: number }>
+  distribuicao: Record<Dificuldade, number>
+  maiorDificuldade: Dificuldade | null
+  dificuldadesGerais: Array<{ titulo: string; total: number }>
+  maiorDificuldadePergunta: { numero: number; enunciado: string } | null
+}
 
 export function FormularioResumo() {
-  useForm()
+  const form = useForm()
+  const { dados: r, erro } = useApi<ResumoFormularioDTO>(`/formularios/${form.id}/resumo`, form)
+  if (erro) return <p role="alert" className="text-[16px] text-diff-c">{erro}</p>
+  if (!r) return <p role="status" className="text-[16px] text-muted">Carregando…</p>
   return (
     <section className="flex flex-col gap-6 rounded-xl border border-line bg-white p-6">
       <h2 className="text-[24px] font-bold text-ink">Resumo da autoavaliação</h2>
       <div className="flex flex-wrap gap-4">
-        <KpiCard className="min-w-[200px]" titulo="Taxa de respostas" valor="75%" detalhe="30/40 alunos responderam" />
-        <KpiCard className="min-w-[200px]" titulo="Valor médio da nota" valor="6,8/10" detalhe="Autoavaliação geral da turma" />
-        <KpiCard className="min-w-[200px]" titulo="Observações enviadas" valor="3" detalhe="Comentários e dúvidas adicionais" />
-        <KpiCard className="min-w-[200px]" titulo="Maior dificuldade" valor="P" detalhe="Pergunta 1: média aritmética" />
+        <KpiCard className="min-w-[200px]" titulo="Taxa de respostas" valor={`${r.taxaResposta}%`} detalhe={`${r.respondidos}/${r.total} alunos responderam`} />
+        <KpiCard className="min-w-[200px]" titulo="Valor médio da nota" valor={r.notaMedia === null ? '—' : `${formatarNota(r.notaMedia)}/10`} detalhe="Autoavaliação geral da turma" />
+        <KpiCard className="min-w-[200px]" titulo="Observações enviadas" valor={r.totalObservacoes} detalhe="Comentários e dúvidas adicionais" />
+        <KpiCard
+          className="min-w-[200px]"
+          titulo="Maior dificuldade"
+          valor={r.maiorDificuldade ?? '—'}
+          detalhe={r.maiorDificuldadePergunta ? `Pergunta ${r.maiorDificuldadePergunta.numero}: ${r.maiorDificuldadePergunta.enunciado}` : 'Sem respostas ainda'}
+        />
       </div>
       <div className="flex flex-col gap-6 lg:flex-row">
         <div className="flex min-w-0 flex-1 flex-col gap-6">
@@ -301,35 +359,43 @@ export function FormularioResumo() {
               {GRUPOS.map((g) => (
                 <li key={g.letra} className="flex items-center gap-3">
                   <DifficultyLetter letra={g.letra} className="w-[60px] text-center text-[16px] text-ink" />
-                  <div className="h-3 flex-1 overflow-hidden rounded-full bg-line" role="progressbar" aria-label={`Grupo ${g.letra}`} aria-valuenow={g.valor} aria-valuemin={0} aria-valuemax={100}>
-                    <div className={cx('h-full rounded-full', g.cor)} style={{ width: `${g.valor}%` }} />
+                  <div className="h-3 flex-1 overflow-hidden rounded-full bg-line" role="progressbar" aria-label={`Grupo ${g.letra}`} aria-valuenow={r.distribuicao[g.letra]} aria-valuemin={0} aria-valuemax={100}>
+                    <div className={cx('h-full rounded-full', g.cor)} style={{ width: `${r.distribuicao[g.letra]}%` }} />
                   </div>
-                  <span className="text-[16px] font-semibold text-ink">{g.valor}%</span>
+                  <span className="text-[16px] font-semibold text-ink">{r.distribuicao[g.letra]}%</span>
                 </li>
               ))}
             </ul>
           </Panel>
-          <Panel titulo="Dificuldades gerais" subtitulo="Principais pontos mencionados pelos alunos ao longo da autoavaliação.">
-            <ul className="flex flex-col gap-3 text-[16px] font-semibold text-ink">
-              {DIFICULDADES_GERAIS.map((d) => (
-                <li key={d.titulo} className="flex items-center gap-3">
-                  <span className="min-w-0 flex-1">{d.titulo}</span>
-                  <span>{d.total}</span>
-                </li>
-              ))}
-            </ul>
+          <Panel titulo="Dificuldades gerais" subtitulo="Perguntas que mais alunos erraram na autoavaliação.">
+            {r.dificuldadesGerais.length === 0 ? (
+              <p className="text-[16px] text-muted">Nenhuma dificuldade registrada ainda.</p>
+            ) : (
+              <ul className="flex flex-col gap-3 text-[16px] font-semibold text-ink">
+                {r.dificuldadesGerais.map((d) => (
+                  <li key={d.titulo} className="flex items-center gap-3">
+                    <span className="min-w-0 flex-1">{d.titulo}</span>
+                    <span>{d.total}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Panel>
         </div>
         <div className="w-full shrink-0 lg:w-[360px]">
           <Panel titulo="Observações dos alunos" subtitulo="Comentários recorrentes e sugestões enviadas pelos estudantes.">
-            <ul className="flex flex-col gap-3">
-              {OBSERVACOES.map((o) => (
-                <li key={o.texto} className="flex flex-col gap-1.5 rounded-lg border border-line bg-white p-3">
-                  <p className="text-[14px] text-ink">{`"${o.texto}"`}</p>
-                  <p className="text-[12px] text-muted">{`${o.alunos} alunos`}</p>
-                </li>
-              ))}
-            </ul>
+            {r.observacoes.length === 0 ? (
+              <p className="text-[16px] text-muted">Nenhuma observação enviada.</p>
+            ) : (
+              <ul className="flex flex-col gap-3">
+                {r.observacoes.map((o) => (
+                  <li key={o.texto} className="flex flex-col gap-1.5 rounded-lg border border-line bg-white p-3">
+                    <p className="text-[14px] text-ink">{`"${o.texto}"`}</p>
+                    <p className="text-[12px] text-muted">{`${o.alunos} ${o.alunos === 1 ? 'aluno' : 'alunos'}`}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Panel>
         </div>
       </div>

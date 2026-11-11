@@ -44,7 +44,7 @@ Estilo **acolhedor e sóbrio**: paleta terrosa (bege/marrom) sobre fundo quase b
 **Cores de equipe** (`CORES_EQUIPE`): `#8fcbc5` (padrão) · `#f3ae8d` · `#f27c7e` · `#8df3b6` · `#df8bb3` · `#b98fcb`.
 **Cores de aluno** (avatares): marrom `#a67b5b` · azul `#3b82f6` · vermelho `#ef4444` · violeta `#8b5cf6`.
 
-**Status de formulário** (`StatusPill`): Ativo (fundo `#eaf7ec`, texto `#2f7a3f`, bolinha `#69be3a`) · Agendado (`#eaf2f7`, `#2f5b7a`, `#3a97be`) · Inativo (`rgba(0,0,0,.08)`, `rgba(0,0,0,.46)`) · Rascunho (`#f7f5ea`, `#7a712f`, `#beaf3a`).
+**Status de formulário** (`StatusPill`): Agendado (`#eaf2f7`, `#2f5b7a`, `#3a97be`) · Rascunho (`#f7f5ea`, `#7a712f`, `#beaf3a`) · Fechado (`rgba(0,0,0,.08)`, `rgba(0,0,0,.46)`) · Aberto (fundo `#eaf7ec`, texto `#2f7a3f`, bolinha `#69be3a`) · Concluído (`#f3eaf7`, `#5b2f7a`, `#8a3abe`).
 
 ### Tipografia
 | Token | Fonte | Uso |
@@ -77,7 +77,7 @@ Sidebar fixa **220px** + coluna fluida; topbar **54px**; conteúdo com `gap-5`; 
 | `ButtonGhost` | ação secundária ("Cancelar") | `onClick` |
 | `Avatar` | círculo com inicial | `letra`, `cor`, `size` |
 | `TeamBadge` | quadrado com sigla colorida | `sigla`, `cor`, `size`, `fontSize` |
-| `StatusPill` | status do formulário | `status: 'ativo' \| 'agendado' \| 'inativo' \| 'rascunho'` |
+| `StatusPill` | status do formulário | `status: 'agendado' \| 'rascunho' \| 'fechado' \| 'aberto' \| 'concluido'` |
 | `ProgressBar` | barra de taxa de resposta (acessível) | `value` (0–100), `label` |
 | `Field` | input de texto com rótulo | `label` + props de `<input>` |
 | `PasswordField` | senha com olho mostrar/ocultar | `label?`, `placeholder`, `value`, `onChange`, `name` |

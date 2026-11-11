@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { Navigate, Outlet, useNavigate, useOutletContext, useParams } from 'react-router-dom'
-import donut from '../assets/figma/donut.svg'
 import dotC from '../assets/figma/dot-c.svg'
 import dotI from '../assets/figma/dot-i.svg'
 import dotP from '../assets/figma/dot-p.svg'
@@ -8,8 +7,9 @@ import sortIcon from '../assets/figma/sort.svg'
 import { AppShell, Banner, BannerStat, DataTable, Section, TabBar, Toolbar } from '../components/layout'
 import { CriarEquipeModal, EditarEquipeModal, EditarFormularioModal } from '../components/modals'
 import { Avatar, ButtonPrimary, DifficultyLetter, FilterSelect, KpiCard, Panel, ProgressBar, SearchBox, StatusPill, SortButton, TeamBadge, cx, OptionsMenu } from '../components/ui'
-import { ALUNOS, PERIODOS } from '../data/mock'
-import type { Equipe, Formulario } from '../data/mock'
+import { useApi } from '../api/use-api'
+import { PERIODOS } from '../data/tipos'
+import type { Dificuldade, Equipe, Formulario } from '../data/tipos'
 import { useStore } from '../store'
 
 /* Lista de equipes */
@@ -21,6 +21,7 @@ type TeamCardProps = {
 
 function TeamCard({ equipe, onEditar, onAlternarVisibilidade }: TeamCardProps) {
   const navigate = useNavigate()
+  const { removerEquipe } = useStore()
   const abrir = () => navigate(`/equipes/${equipe.id}`)
   return (
     <article
@@ -65,7 +66,7 @@ function TeamCard({ equipe, onEditar, onAlternarVisibilidade }: TeamCardProps) {
                 icon: 'delete',
                 destructive: true,
                 onClick: () => {
-                  // Excluir equipe
+                  if (window.confirm(`Excluir a equipe "${equipe.nome}"? Formulários e respostas dela serão apagados.`)) void removerEquipe(equipe.id)
                 },
               },
             ]}
@@ -180,7 +181,8 @@ export function Equipes() {
 
 export function EquipeDetalhe() {
   const { id } = useParams()
-  const { equipes, atualizarEquipe } = useStore()
+  const { equipes, atualizarEquipe, removerEquipe } = useStore()
+  const navigate = useNavigate()
   const equipe = equipes.find((e) => e.id === id)
   const [editar, setEditar] = useState(false)
   if (!equipe) return <Navigate to="/equipes" replace />
@@ -209,8 +211,10 @@ export function EquipeDetalhe() {
                 label: 'Excluir equipe',
                 icon: 'delete',
                 destructive: true,
-                onClick: () => {
-                  // implementar exclusão
+                onClick: async () => {
+                  if (!window.confirm(`Excluir a equipe "${equipe.nome}"? Formulários e respostas dela serão apagados.`)) return
+                  await removerEquipe(equipe.id)
+                  navigate('/equipes', { replace: true })
                 },
               },
             ]}
@@ -243,10 +247,27 @@ function useEquipe() {
   return useOutletContext<Equipe>()
 }
 
+/** Itens de menu para mudar o status conforme as transições permitidas (R-25). */
+export function acoesDeStatus(f: Formulario, mudar: (status: Formulario['status']) => void) {
+  const item = (label: string, icon: string, status: Formulario['status']) => ({ label, icon, onClick: () => mudar(status) })
+  switch (f.status) {
+    case 'rascunho':
+      return [item('Publicar agora', 'publish', 'aberto')]
+    case 'agendado':
+      return [item('Postar agora', 'publish', 'aberto')]
+    case 'aberto':
+      return [item('Fechar formulário', 'visibility_off', 'fechado'), item('Marcar como concluído', 'task_alt', 'concluido')]
+    case 'fechado':
+      return [item('Reabrir formulário', 'visibility', 'aberto'), item('Marcar como concluído', 'task_alt', 'concluido')]
+    default:
+      return []
+  }
+}
+
 export function EquipeFormularios() {
   const equipe = useEquipe()
   const navigate = useNavigate()
-  const { formularios, atualizarFormulario, removerFormulario } = useStore()
+  const { formularios, atualizarFormulario, removerFormulario, executar } = useStore()
   const [busca, setBusca] = useState('')
   const [status, setStatus] = useState('')
   const [asc, setAsc] = useState(false)
@@ -277,7 +298,7 @@ export function EquipeFormularios() {
             label="Status"
             value={status}
             onChange={setStatus}
-            options={['ativo', 'agendado', 'inativo', 'rascunho']}
+            options={['agendado', 'rascunho', 'fechado', 'aberto', 'concluido']}
           />
         </div>
 
@@ -376,38 +397,14 @@ export function EquipeFormularios() {
                         onClick: () => setFormularioEditando(formulario),
                       },
 
-                      ...(formulario.status === 'ativo'
-                        ? [
-                            {
-                              label: 'Deixar inativo',
-                              icon: 'visibility_off',
-                              onClick: () => {
-                                atualizarFormulario(formulario.id, {
-                                  status: 'inativo',
-                                })
-                              },
-                            },
-                          ]
-                        : formulario.status === 'agendado'
-                          ? [
-                              {
-                                label: 'Postar agora',
-                                icon: 'publish',
-                                onClick: () => {
-                                  atualizarFormulario(formulario.id, {
-                                    status: 'ativo',
-                                  })
-                                },
-                              },
-                            ]
-                          : []),
+                      ...acoesDeStatus(formulario, (status) => executar(() => atualizarFormulario(formulario.id, { status }))),
 
                       {
                         label: 'Excluir',
                         icon: 'delete',
                         destructive: true,
                         onClick: () => {
-                          removerFormulario(formulario.id)
+                          if (window.confirm(`Excluir o formulário "${formulario.titulo}"? As respostas dos alunos também serão apagadas.`)) void removerFormulario(formulario.id)
                         },
                       },
                     ]}
@@ -442,46 +439,118 @@ function AlunosSecao({ titulo, children }: { titulo: string; children: React.Rea
   return <Section titulo={titulo}>{children}</Section>
 }
 
+const CORES_AVATAR = ['#a67b5b', '#3b82f6', '#ef4444', '#8b5cf6', '#15593c', '#df8bb3']
+
+const iniciaisDe = (nome: string) =>
+  nome
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join('')
+    .toUpperCase()
+
+interface AlunosTurmaDTO {
+  docentes: Array<{ id: string; nome: string }>
+  alunos: Array<{ id: string; nome: string; dominio: number | null; enviados: string }>
+}
+
+function LinkDeConvite({ codigo }: { codigo: string }) {
+  const [copiado, setCopiado] = useState(false)
+  const link = `${window.location.origin}/convite/${codigo}`
+  async function copiar() {
+    try {
+      await navigator.clipboard.writeText(link)
+      setCopiado(true)
+      setTimeout(() => setCopiado(false), 2000)
+    } catch {
+      /* sem permissão de área de transferência: o link continua visível para copiar à mão */
+    }
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-line-input bg-white p-3">
+      <code aria-label="Link de convite" className="min-w-0 flex-1 break-all text-[16px] text-ink">
+        {link}
+      </code>
+      <button type="button" onClick={copiar} className="cursor-pointer rounded-lg border border-[#c9b8a0] bg-white px-3 py-1 text-[16px] text-[#a08d77]">
+        {copiado ? 'Copiado!' : 'Copiar link'}
+      </button>
+    </div>
+  )
+}
+
 export function EquipeAlunos() {
-  useEquipe()
+  const equipe = useEquipe()
+  const { dados, erro } = useApi<AlunosTurmaDTO>(`/turmas/${equipe.id}/alunos`, equipe)
+  if (erro) return <p role="alert" className="text-[16px] text-diff-c">{erro}</p>
+  const docentes = dados?.docentes ?? []
+  const alunos = dados?.alunos ?? []
   return (
     <div className="flex flex-col gap-4">
-      <AlunosSecao titulo="Docentes (1)">
-        <DataTable colunas={[{ titulo: 'Aluno' }]} linhas={[[<Iniciais key="a" nome="Alberto" cor="#15593c" iniciais="A" />]]} />
+      {equipe.codigoConvite && (
+        <AlunosSecao titulo="Convidar alunos">
+          <LinkDeConvite codigo={equipe.codigoConvite} />
+        </AlunosSecao>
+      )}
+      <AlunosSecao titulo={`Docentes (${docentes.length})`}>
+        <DataTable colunas={[{ titulo: 'Aluno' }]} linhas={docentes.map((d) => [<Iniciais key={d.id} nome={d.nome} cor="#15593c" iniciais={iniciaisDe(d.nome)} />])} />
       </AlunosSecao>
-      <AlunosSecao titulo={`Alunos (${ALUNOS.length})`}>
-        <DataTable
-          cabecalhoAlto
-          colunas={[
-            { titulo: 'Aluno' },
-            { titulo: 'Domínio médio', largura: '200px', centro: true },
-            { titulo: 'Formulários enviados', largura: '200px', centro: true },
-            { titulo: 'Ação', largura: '120px', centro: true },
-          ]}
-          linhas={ALUNOS.map((a) => [
-            <Iniciais key="n" nome={a.nome} cor={a.cor} iniciais={a.iniciais} />,
-            <strong key="d">{a.dominio}%</strong>,
-            a.enviados,
-            <button key="m" type="button" aria-label={`Ações de ${a.nome}`} className="cursor-pointer font-inter">
-              ...
-            </button>,
-          ])}
-        />
+      <AlunosSecao titulo={`Alunos (${alunos.length})`}>
+        {alunos.length === 0 ? (
+          <p className="text-[16px] text-muted">Nenhum aluno na equipe ainda. Compartilhe o link de convite acima.</p>
+        ) : (
+          <DataTable
+            cabecalhoAlto
+            colunas={[
+              { titulo: 'Aluno' },
+              { titulo: 'Domínio médio', largura: '200px', centro: true },
+              { titulo: 'Formulários enviados', largura: '200px', centro: true },
+            ]}
+            linhas={alunos.map((a, i) => [
+              <Iniciais key="n" nome={a.nome} cor={CORES_AVATAR[i % CORES_AVATAR.length] ?? '#a67b5b'} iniciais={iniciaisDe(a.nome)} />,
+              <strong key="d">{a.dominio === null ? '—' : `${a.dominio}%`}</strong>,
+              a.enviados,
+            ])}
+          />
+        )}
       </AlunosSecao>
     </div>
   )
 }
 
-const ATIVIDADES = [
-  { rotulo: 'Diagnóstico', valor: 58, cor: '#8fcbc5' },
-  { rotulo: 'Atividade 1', valor: 63, cor: '#34785c' },
-  { rotulo: 'A definir' },
-  { rotulo: 'A definir' },
-  { rotulo: 'A definir' },
-] as const
+interface ResumoTurmaDTO {
+  engajamento: number
+  alunosQueRespondeuTudo: number
+  notaMedia: number | null
+  desempenhoGeral: number | null
+  maiorDificuldade: Dificuldade | null
+  distribuicao: Record<Dificuldade, number>
+  evolucao: Array<{ titulo: string; valor: number | null }>
+  maiorDificuldadePorFormulario: Array<{ titulo: string; nivel: Dificuldade }>
+}
+
+const formatarDecimal = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 
 export function EquipeResumo() {
-  useEquipe()
+  const equipe = useEquipe()
+  const { dados: r, erro } = useApi<ResumoTurmaDTO>(`/turmas/${equipe.id}/resumo`, equipe)
+  const { formularios } = useStore()
+  if (erro) return <p role="alert" className="text-[16px] text-diff-c">{erro}</p>
+  if (!r) return <p role="status" className="text-[16px] text-muted">Carregando…</p>
+
+  const atividades: Array<{ rotulo: string; valor?: number; cor?: string }> = r.evolucao.map((e, i) => ({
+    rotulo: e.titulo,
+    valor: e.valor ?? 0,
+    cor: i === r.evolucao.length - 1 ? '#34785c' : '#8fcbc5',
+  }))
+  while (atividades.length < 5) atividades.push({ rotulo: 'A definir' })
+  const { I, P, C } = r.distribuicao
+  const temDistribuicao = I + P + C > 0
+  const donutFundo = temDistribuicao
+    ? `conic-gradient(var(--color-diff-i) 0 ${I}%, var(--color-diff-p) ${I}% ${I + P}%, var(--color-diff-c) ${I + P}% 100%)`
+    : 'var(--color-track)'
+  const ultimoComDados = formularios.filter((f) => f.equipeId === equipe.id && f.maiorDificuldade).at(0)
+
   return (
     <section className="flex flex-col gap-2 rounded-xl border border-line bg-white p-[22px]">
       <header className="flex flex-col gap-1">
@@ -489,10 +558,15 @@ export function EquipeResumo() {
         <p className="text-[13px] text-muted">Visão coletiva com desempenho, evolução e pontos que precisam de atenção.</p>
       </header>
       <div className="flex flex-wrap gap-3.5">
-        <KpiCard className="min-w-[200px] gap-1" titulo="Engajamento" valor="86%" detalhe="26 alunos responderam tudo" />
-        <KpiCard className="min-w-[200px] gap-1" titulo="Valor médio da nota" valor="7,5/10" detalhe="Autoavaliação geral da turma" />
-        <KpiCard className="min-w-[200px] gap-1" titulo="Desempenho geral" valor="+6%" detalhe="% desde o início do semestre" />
-        <KpiCard className="min-w-[200px] gap-1" titulo="Maior dificuldade" valor={<span className="font-plex-mono text-[25px]">I</span>} detalhe="Formulário: " />
+        <KpiCard className="min-w-[200px] gap-1" titulo="Engajamento" valor={`${r.engajamento}%`} detalhe={`${r.alunosQueRespondeuTudo} alunos responderam tudo`} />
+        <KpiCard className="min-w-[200px] gap-1" titulo="Valor médio da nota" valor={r.notaMedia === null ? '—' : `${formatarDecimal(r.notaMedia)}/10`} detalhe="Autoavaliação geral da turma" />
+        <KpiCard className="min-w-[200px] gap-1" titulo="Desempenho geral" valor={r.desempenhoGeral === null ? '—' : `${r.desempenhoGeral > 0 ? '+' : ''}${r.desempenhoGeral}%`} detalhe="Variação entre o primeiro e o último formulário" />
+        <KpiCard
+          className="min-w-[200px] gap-1"
+          titulo="Maior dificuldade"
+          valor={r.maiorDificuldade ? <span className="font-plex-mono text-[25px]">{r.maiorDificuldade}</span> : '—'}
+          detalhe={ultimoComDados ? `Formulário: ${ultimoComDados.titulo}` : 'Nível mais frequente'}
+        />
       </div>
       <div className="flex flex-col gap-4 lg:flex-row">
         <section className="flex min-h-[290px] min-w-0 flex-1 flex-col gap-3 rounded-xl border border-line bg-panel p-[18px]">
@@ -502,19 +576,16 @@ export function EquipeResumo() {
           </header>
           <div role="img" aria-label="Evolução do desempenho nas últimas cinco atividades" className="flex flex-1 flex-col justify-end">
             <div className="flex h-[150px] items-end justify-around border-b border-line">
-              {ATIVIDADES.map((a, i) => (
+              {atividades.map((a, i) => (
                 <div key={i} className="flex w-[72px] flex-col items-center gap-1">
-                  <span className={cx('text-[12px] font-bold', 'valor' in a ? 'text-ink' : 'text-bar-gray')}>{'valor' in a ? `${a.valor}%` : '??%'}</span>
-                  <div
-                    className="w-8 rounded-t-md"
-                    style={{ height: 'valor' in a ? a.valor : 9, backgroundColor: 'valor' in a ? a.cor : '#bebebe' }}
-                  />
+                  <span className={cx('text-[12px] font-bold', a.valor !== undefined ? 'text-ink' : 'text-bar-gray')}>{a.valor !== undefined ? `${a.valor}%` : '??%'}</span>
+                  <div className="w-8 rounded-t-md" style={{ height: a.valor !== undefined ? Math.max(a.valor, 2) : 9, backgroundColor: a.cor ?? '#bebebe' }} />
                 </div>
               ))}
             </div>
             <div className="mt-1 flex justify-around text-[11px] text-muted">
-              {ATIVIDADES.map((a, i) => (
-                <span key={i} className="w-[72px] text-center">
+              {atividades.map((a, i) => (
+                <span key={i} className="w-[72px] truncate text-center" title={a.rotulo}>
                   {a.rotulo}
                 </span>
               ))}
@@ -525,30 +596,40 @@ export function EquipeResumo() {
           <section className="flex flex-col gap-1.5 rounded-xl border border-line bg-white p-[18px]">
             <h3 className="text-[16px] font-semibold text-ink">Distribuição de Dificuldade</h3>
             <div className="flex items-center justify-center gap-6">
-              <img src={donut} alt="Gráfico de rosca da distribuição de dificuldade" className="size-[100px]" />
+              <div
+                role="img"
+                aria-label="Gráfico de rosca da distribuição de dificuldade"
+                className="size-[100px] shrink-0 rounded-full"
+                style={{ background: donutFundo, mask: 'radial-gradient(circle, transparent 38%, #000 39%)', WebkitMask: 'radial-gradient(circle, transparent 38%, #000 39%)' }}
+              />
               <ul className="flex flex-col gap-2 text-[12px] text-ink">
                 <li className="flex items-center gap-2">
                   <img src={dotI} alt="" className="size-2" />
                   <span>
-                    <DifficultyLetter letra="I" className="font-plex-mono font-normal" /> (25%)
+                    <DifficultyLetter letra="I" className="font-plex-mono font-normal" /> ({I}%)
                   </span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <img src={dotP} alt="" className="size-2" />P (35%)
+                  <img src={dotP} alt="" className="size-2" />P ({P}%)
                 </li>
                 <li className="flex items-center gap-2">
-                  <img src={dotC} alt="" className="size-2" />C (45%)
+                  <img src={dotC} alt="" className="size-2" />C ({C}%)
                 </li>
               </ul>
             </div>
           </section>
           <Panel titulo="Maior dificuldade por formulário" subtitulo="Os cinco últimos serão considerados" tituloTamanho={19}>
-            <ul className="-mt-2 flex flex-col gap-1.5 text-[13px] font-semibold text-ink">
-              <li>Média, mediana e moda: P</li>
-              <li>
-                Tipos de Curtose : <DifficultyLetter letra="I" />
-              </li>
-            </ul>
+            {r.maiorDificuldadePorFormulario.length === 0 ? (
+              <p className="text-[13px] text-muted">Ainda não há respostas enviadas.</p>
+            ) : (
+              <ul className="-mt-2 flex flex-col gap-1.5 text-[13px] font-semibold text-ink">
+                {r.maiorDificuldadePorFormulario.map((f) => (
+                  <li key={f.titulo}>
+                    {f.titulo}: <DifficultyLetter letra={f.nivel} />
+                  </li>
+                ))}
+              </ul>
+            )}
           </Panel>
         </div>
       </div>

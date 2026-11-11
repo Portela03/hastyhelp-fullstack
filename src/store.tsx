@@ -1,33 +1,89 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import {
-  ALUNO_LOGADO,
-  AUTOAVALIACOES_ALUNO_INICIAIS,
-  PROFESSOR_LOGADO,
-  calcularNota,
-  completa,
-  editavel,
-} from './data/aluno'
+import { ErroApi, api, aoSessaoExpirar, definirToken, mensagemDeErro } from './api/client'
+import { paraAutoavaliacao, paraEquipe, paraFormulario, perguntaParaApi } from './api/mapeadores'
+import type { AutoavaliacaoDTO, FormularioDTO, TurmaDTO } from './api/mapeadores'
 import type { AutoavaliacaoAluno, Papel, Sessao } from './data/aluno'
-import { EQUIPES_INICIAIS, FORMULARIOS_INICIAIS } from './data/mock'
-import type { Equipe, Formulario } from './data/mock'
+import { editavel } from './data/aluno'
+import type { Equipe, Formulario, Pergunta, StatusFormulario } from './data/tipos'
+
+export interface PreferenciasPerfil {
+  notificacoesEmail: boolean
+  conclusaoFormularios: boolean
+  publicacaoFormularios: boolean
+  metricasTrimestrais: boolean
+  metricasSemestrais: boolean
+  acessibilidade: boolean
+  tema: 'claro' | 'escuro' | 'alto-contraste'
+}
+
+const PREFERENCIAS_PADRAO: PreferenciasPerfil = {
+  notificacoesEmail: true,
+  conclusaoFormularios: true,
+  publicacaoFormularios: true,
+  metricasTrimestrais: true,
+  metricasSemestrais: true,
+  acessibilidade: true,
+  tema: 'claro',
+}
+
+export interface DadosEquipe {
+  nome: string
+  periodo: string
+  sigla?: string
+  cor?: string
+  oculta?: boolean
+}
+
+export interface DadosFormulario {
+  titulo: string
+  turmaId: string
+  perguntas: Pergunta[]
+  postar?: boolean
+  /** ISO 8601. */
+  publicarEm?: string
+  /** AAAA-MM-DD. */
+  prazo?: string
+  mostrarGabarito?: boolean
+}
+
+export interface EdicaoFormulario {
+  titulo?: string
+  status?: StatusFormulario
+  perguntas?: Pergunta[]
+  mostrarGabarito?: boolean
+  /** AAAA-MM-DD ou ISO; `null` remove o prazo. */
+  prazo?: string | null
+  publicarEm?: string
+}
 
 interface Store {
   sessao: Sessao | null
-  entrar: (papel: Papel) => void
+  /** `true` enquanto os dados iniciais da sessão ainda estão chegando. */
+  carregando: boolean
+  /** Mensagem transitória de erro de uma ação (ex.: falha ao fechar um formulário). */
+  aviso: string | null
+  limparAviso: () => void
+  entrar: (email: string, senha: string, papel: Papel) => Promise<void>
+  cadastrar: (dados: { nome: string; email: string; senha: string; confirmacaoSenha: string; papel: Papel; codigoConvite?: string }) => Promise<void>
   sair: () => void
+  recarregar: () => Promise<void>
+  /** Roda uma ação e, se falhar, mostra o erro como aviso global. */
+  executar: (acao: () => Promise<void>) => Promise<void>
   equipes: Equipe[]
   formularios: Formulario[]
-  adicionarEquipe: (e: Equipe) => void
-  atualizarEquipe: (id: string, dados: Partial<Equipe>) => void
-  adicionarFormulario: (f: Formulario) => void
-  atualizarFormulario: (id: string, dados: Partial<Formulario>) => void
   autoavaliacoes: AutoavaliacaoAluno[]
+  adicionarEquipe: (dados: DadosEquipe) => Promise<Equipe>
+  atualizarEquipe: (id: string, dados: Partial<DadosEquipe>) => Promise<void>
+  removerEquipe: (id: string) => Promise<void>
+  adicionarFormulario: (dados: DadosFormulario) => Promise<void>
+  atualizarFormulario: (id: string, dados: EdicaoFormulario) => Promise<void>
+  removerFormulario: (id: string) => Promise<void>
   salvarResposta: (id: string, perguntaId: string, marcadas: number[]) => void
-  enviarAutoavaliacao: (id: string) => void
-  removerFormulario: (id: string) => void
+  /** `true` se enviou; em erro mostra o aviso e devolve `false`. */
+  enviarAutoavaliacao: (id: string, observacao?: string) => Promise<boolean>
   preferencias: PreferenciasPerfil
-  atualizarPreferencias: (dados: Partial<PreferenciasPerfil>) => void
+  atualizarPreferencias: (dados: Partial<PreferenciasPerfil>) => Promise<void>
 }
 
 const StoreContext = createContext<Store | null>(null)
@@ -36,7 +92,9 @@ const CHAVE_SESSAO = 'hastyhelp:sessao'
 function lerSessao(): Sessao | null {
   try {
     const bruto = sessionStorage.getItem(CHAVE_SESSAO)
-    return bruto ? (JSON.parse(bruto) as Sessao) : null
+    const sessao = bruto ? (JSON.parse(bruto) as Sessao) : null
+    if (sessao?.token) definirToken(sessao.token)
+    return sessao?.token ? sessao : null
   } catch {
     return null
   }
@@ -51,116 +109,211 @@ function gravarSessao(s: Sessao | null) {
   }
 }
 
+interface UsuarioDTO {
+  id: string
+  nome: string
+  email: string
+  papel: Papel
+  preferencias: PreferenciasPerfil
+}
+
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [sessao, setSessao] = useState<Sessao | null>(lerSessao)
-  const [equipes, setEquipes] = useState<Equipe[]>(EQUIPES_INICIAIS)
-  const [formularios, setFormularios] = useState<Formulario[]>(FORMULARIOS_INICIAIS)
-  const [autoavaliacoes, setAutoavaliacoes] = useState<AutoavaliacaoAluno[]>(AUTOAVALIACOES_ALUNO_INICIAIS)
-
-  const [preferencias, setPreferencias] = useState<PreferenciasPerfil>({
-    notificacoesEmail: true,
-    conclusaoFormularios: true,
-    publicacaoFormularios: true,
-    metricasTrimestrais: true,
-    metricasSemestrais: true,
-    acessibilidade: true,
-    tema: 'claro' ,
-  })
+  const [carregando, setCarregando] = useState(() => lerSessao() !== null)
+  const [aviso, setAviso] = useState<string | null>(null)
+  const [equipes, setEquipes] = useState<Equipe[]>([])
+  const [formularios, setFormularios] = useState<Formulario[]>([])
+  const [autoavaliacoes, setAutoavaliacoes] = useState<AutoavaliacaoAluno[]>([])
+  const [preferencias, setPreferencias] = useState<PreferenciasPerfil>(PREFERENCIAS_PADRAO)
+  const papelRef = useRef<Papel | null>(sessao?.papel ?? null)
 
   useEffect(() => {
-    document.body.classList.toggle(
-      'ocultar-widget-acessibilidade',
-      !preferencias.acessibilidade,
-    )
+    document.body.classList.toggle('ocultar-widget-acessibilidade', !preferencias.acessibilidade)
   }, [preferencias.acessibilidade])
 
   useEffect(() => {
     document.body.dataset.tema = preferencias.tema
   }, [preferencias.tema])
 
-  const entrar = useCallback((papel: Papel) => {
-    const nova: Sessao = { papel, nome: papel === 'aluno' ? ALUNO_LOGADO : PROFESSOR_LOGADO }
-    gravarSessao(nova)
-    setSessao(nova)
+  const limparDados = useCallback(() => {
+    setEquipes([])
+    setFormularios([])
+    setAutoavaliacoes([])
+    setPreferencias(PREFERENCIAS_PADRAO)
   }, [])
+
   const sair = useCallback(() => {
     gravarSessao(null)
+    definirToken(null)
+    papelRef.current = null
     setSessao(null)
+    limparDados()
+  }, [limparDados])
+
+  useEffect(() => {
+    aoSessaoExpirar(sair)
+    return () => aoSessaoExpirar(null)
+  }, [sair])
+
+  /** Busca tudo o que a sessão precisa; chamada após login e após cada mudança de dados. */
+  const recarregar = useCallback(async () => {
+    const papel = papelRef.current
+    if (!papel) return
+    if (papel === 'professor') {
+      const [turmas, forms] = await Promise.all([api<TurmaDTO[]>('GET', '/turmas'), api<FormularioDTO[]>('GET', '/formularios')])
+      const lista = turmas.map(paraEquipe)
+      setEquipes(lista)
+      setFormularios(forms.map((f) => paraFormulario(f, lista)))
+    } else {
+      const [turmas, itens] = await Promise.all([api<TurmaDTO[]>('GET', '/aluno/turmas'), api<AutoavaliacaoDTO[]>('GET', '/aluno/autoavaliacoes')])
+      setEquipes(turmas.map(paraEquipe))
+      setAutoavaliacoes(itens.map(paraAutoavaliacao))
+    }
   }, [])
 
-  const adicionarEquipe = useCallback((e: Equipe) => setEquipes((l) => [...l, e]), [])
-  const atualizarEquipe = useCallback(
-    (id: string, dados: Partial<Equipe>) => setEquipes((l) => l.map((e) => (e.id === id ? { ...e, ...dados } : e))),
-    [],
+  // Login ou sessão restaurada (recarregar a página): busca perfil e dados.
+  useEffect(() => {
+    if (!sessao) return
+    let ativo = true
+    Promise.all([api<UsuarioDTO>('GET', '/perfil'), recarregar()])
+      .then(([perfil]) => {
+        if (ativo) setPreferencias({ ...PREFERENCIAS_PADRAO, ...perfil.preferencias })
+      })
+      .catch((e) => {
+        if (ativo && !(e instanceof ErroApi && e.status === 401)) setAviso(mensagemDeErro(e))
+      })
+      .finally(() => ativo && setCarregando(false))
+    return () => {
+      ativo = false
+    }
+  }, [sessao, recarregar])
+
+  const entrar = useCallback(async (email: string, senha: string, papel: Papel) => {
+    const r = await api<{ token: string; usuario: UsuarioDTO }>('POST', '/auth/login', { email, senha, papel })
+    const nova: Sessao = { papel: r.usuario.papel, nome: r.usuario.nome, email: r.usuario.email, token: r.token }
+    definirToken(r.token)
+    papelRef.current = nova.papel
+    gravarSessao(nova)
+    setCarregando(true)
+    setPreferencias({ ...PREFERENCIAS_PADRAO, ...r.usuario.preferencias })
+    setSessao(nova)
+  }, [])
+
+  const cadastrar = useCallback<Store['cadastrar']>(async (dados) => {
+    await api('POST', '/auth/cadastro', dados)
+  }, [])
+
+  /** Executa uma ação de menu/botão que não tem onde mostrar o erro: vira um aviso global. */
+  const comAviso = useCallback(async (acao: () => Promise<void>) => {
+    try {
+      await acao()
+    } catch (e) {
+      setAviso(mensagemDeErro(e))
+    }
+  }, [])
+
+  const adicionarEquipe = useCallback(
+    async (dados: DadosEquipe) => {
+      const dto = await api<TurmaDTO>('POST', '/turmas', dados)
+      await recarregar()
+      return paraEquipe(dto)
+    },
+    [recarregar],
   )
-  const adicionarFormulario = useCallback((f: Formulario) => setFormularios((l) => [f, ...l]), [])
+  const atualizarEquipe = useCallback(
+    async (id: string, dados: Partial<DadosEquipe>) => {
+      await api('PATCH', `/turmas/${id}`, dados)
+      await recarregar()
+    },
+    [recarregar],
+  )
+  const removerEquipe = useCallback(
+    async (id: string) => {
+      await api('DELETE', `/turmas/${id}`)
+      await recarregar()
+    },
+    [recarregar],
+  )
+
+  const adicionarFormulario = useCallback(
+    async (dados: DadosFormulario) => {
+      await api('POST', '/formularios', { ...dados, perguntas: dados.perguntas.map(perguntaParaApi) })
+      await recarregar()
+    },
+    [recarregar],
+  )
   const atualizarFormulario = useCallback(
-    (id: string, dados: Partial<Formulario>) => setFormularios((l) => l.map((f) => (f.id === id ? { ...f, ...dados } : f))),
-    [],
+    async (id: string, dados: EdicaoFormulario) => {
+      await api('PATCH', `/formularios/${id}`, { ...dados, ...(dados.perguntas ? { perguntas: dados.perguntas.map(perguntaParaApi) } : {}) })
+      await recarregar()
+    },
+    [recarregar],
   )
   const removerFormulario = useCallback(
-  (id: string) => {
-    setFormularios((lista) =>
-      lista.filter((formulario) => formulario.id !== id),
-    )
-  },
-  [],
-)
-
-  /** Salva a resposta na hora (rascunho). Só vale enquanto a autoavaliação está aberta. */
-  const salvarResposta = useCallback((id: string, perguntaId: string, marcadas: number[]) => {
-    setAutoavaliacoes((lista) =>
-      lista.map((a) => {
-        if (a.id !== id || !editavel(a.status)) return a
-        return { ...a, status: 'andamento', respostas: { ...a.respostas, [perguntaId]: marcadas } }
-      }),
-    )
-  }, [])
-
-  /** Envia de vez: só com todas as perguntas respondidas e sem volta (integridade das respostas). */
-  const enviarAutoavaliacao = useCallback((id: string) => {
-    setAutoavaliacoes((lista) =>
-      lista.map((a) => {
-        if (a.id !== id || !editavel(a.status) || !completa(a)) return a
-        return {
-          ...a,
-          status: 'respondido',
-          enviadoEm: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }),
-          nota: calcularNota(a),
-        }
-      }),
-    )
-  }, [])
-
-  const atualizarPreferencias = useCallback(
-    (dados: Partial<PreferenciasPerfil>) => {
-      setPreferencias((atuais) => ({
-        ...atuais,
-        ...dados,
-      }))
+    async (id: string) => {
+      await api('DELETE', `/formularios/${id}`)
+      await recarregar()
     },
-    [],
+    [recarregar],
   )
 
-  const value = useMemo(
+  /** Salva na hora (rascunho): atualiza a tela já e confirma com o servidor; em erro, desfaz. */
+  const salvarResposta = useCallback(
+    (id: string, perguntaId: string, marcadas: number[]) => {
+      const anterior = autoavaliacoes
+      setAutoavaliacoes((lista) =>
+        lista.map((a) => (a.id === id && editavel(a.status) ? { ...a, status: 'andamento', respostas: { ...a.respostas, [perguntaId]: marcadas } } : a)),
+      )
+      api<AutoavaliacaoDTO>('PUT', `/aluno/autoavaliacoes/${id}/respostas/${perguntaId}`, { marcadas }).catch((e) => {
+        setAutoavaliacoes(anterior)
+        setAviso(mensagemDeErro(e))
+      })
+    },
+    [autoavaliacoes],
+  )
+
+  const enviarAutoavaliacao = useCallback(async (id: string, observacao?: string) => {
+    try {
+      const dto = await api<AutoavaliacaoDTO>('POST', `/aluno/autoavaliacoes/${id}/enviar`, observacao ? { observacao } : {})
+      setAutoavaliacoes((lista) => lista.map((a) => (a.id === id ? paraAutoavaliacao(dto) : a)))
+      return true
+    } catch (e) {
+      setAviso(mensagemDeErro(e))
+      return false
+    }
+  }, [])
+
+  const atualizarPreferencias = useCallback(async (dados: Partial<PreferenciasPerfil>) => {
+    setPreferencias((atuais) => ({ ...atuais, ...dados }))
+    await api('PATCH', '/perfil/preferencias', dados)
+  }, [])
+
+  const value = useMemo<Store>(
     () => ({
       sessao,
+      carregando,
+      aviso,
+      limparAviso: () => setAviso(null),
       entrar,
+      cadastrar,
       sair,
+      recarregar,
+      executar: comAviso,
       equipes,
       formularios,
+      autoavaliacoes,
       adicionarEquipe,
-      atualizarEquipe,
+      atualizarEquipe: (id, dados) => comAviso(() => atualizarEquipe(id, dados)),
+      removerEquipe: (id) => comAviso(() => removerEquipe(id)),
       adicionarFormulario,
       atualizarFormulario,
-      removerFormulario,
-      autoavaliacoes,
+      removerFormulario: (id) => comAviso(() => removerFormulario(id)),
       salvarResposta,
       enviarAutoavaliacao,
       preferencias,
       atualizarPreferencias,
     }),
-    [sessao, entrar, sair, equipes, formularios, adicionarEquipe, atualizarEquipe, adicionarFormulario, atualizarFormulario, autoavaliacoes, salvarResposta, enviarAutoavaliacao, preferencias, atualizarPreferencias],
+    [sessao, carregando, aviso, entrar, cadastrar, sair, recarregar, equipes, formularios, autoavaliacoes, adicionarEquipe, atualizarEquipe, removerEquipe, adicionarFormulario, atualizarFormulario, removerFormulario, comAviso, salvarResposta, enviarAutoavaliacao, preferencias, atualizarPreferencias],
   )
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
 }
@@ -171,14 +324,3 @@ export function useStore() {
   if (!ctx) throw new Error('useStore deve ser usado dentro de StoreProvider')
   return ctx
 }
-
-export interface PreferenciasPerfil {
-  notificacoesEmail: boolean
-  conclusaoFormularios: boolean
-  publicacaoFormularios: boolean
-  metricasTrimestrais: boolean
-  metricasSemestrais: boolean
-  acessibilidade: boolean
-  tema: 'claro' | 'escuro' | 'alto-contraste'
-}
-

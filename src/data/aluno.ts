@@ -1,15 +1,13 @@
-import { PERGUNTAS } from './mock'
-import type { Dificuldade, Equipe, Pergunta } from './mock'
+import type { Dificuldade, Pergunta } from './tipos'
 
 export type Papel = 'professor' | 'aluno'
 
 export interface Sessao {
   papel: Papel
   nome: string
+  email: string
+  token: string
 }
-
-export const ALUNO_LOGADO = 'Sarah Chen'
-export const PROFESSOR_LOGADO = 'Alberto'
 
 /** Status da autoavaliação do ponto de vista do aluno. */
 export type StatusAluno = 'pendente' | 'andamento' | 'respondido' | 'encerrado'
@@ -36,109 +34,6 @@ export interface AutoavaliacaoAluno {
   perguntas: Pergunta[]
   respostas: Record<string, number[]>
 }
-
-const base = {
-  totalAlunos: 0,
-  ultimoFormulario: '',
-  taxaResposta: 0,
-  dominioMedio: 0,
-  engajamento: 0,
-}
-
-export const TURMAS_ALUNO: Equipe[] = [
-  {
-    ...base,
-    id: 'a-pdm',
-    nome: 'Programação para Dispositivos Móveis',
-    sigla: 'PD',
-    cor: '#8fcbc5',
-    periodo: '2026/02',
-    docente: 'Wellington Fernando Bastos',
-  },
-  {
-    ...base,
-    id: 'a-ea',
-    nome: 'Estatística Aplicada',
-    sigla: 'EA',
-    cor: '#b98fcb',
-    periodo: '2026/02',
-    docente: 'Marina Alves',
-  },
-]
-
-export const CONVITES: Record<string, string> = {
-  'pdm-2026': 'a-pdm',
-  'ea-2026': 'a-ea',
-}
-
-export const AUTOAVALIACOES_ALUNO_INICIAIS: AutoavaliacaoAluno[] = [
-  {
-    id: 'a1',
-    titulo: 'Média, mediana e moda',
-    turmaId: 'a-pdm',
-    status: 'pendente',
-    prazo: '20/09/26',
-    mostrarGabarito: true,
-    perguntas: PERGUNTAS,
-    respostas: {},
-  },
-  {
-    id: 'a2',
-    titulo: 'Diagnóstico',
-    turmaId: 'a-pdm',
-    status: 'respondido',
-    enviadoEm: '12/08/26',
-    nota: 5.5,
-    compreensao: 'C',
-    mostrarGabarito: false,
-    perguntas: PERGUNTAS,
-    respostas: { q1: [1], q2: [0], q3: [1] },
-  },
-  {
-    id: 'a3',
-    titulo: 'Atividade 1',
-    turmaId: 'a-pdm',
-    status: 'respondido',
-    enviadoEm: '26/08/26',
-    nota: 7.5,
-    compreensao: 'P',
-    mostrarGabarito: true,
-    perguntas: PERGUNTAS,
-    respostas: { q1: [0], q2: [0], q3: [1] },
-  },
-  {
-    id: 'a4',
-    titulo: 'Distribuições de probabilidade',
-    turmaId: 'a-ea',
-    status: 'andamento',
-    prazo: '30/09/26',
-    mostrarGabarito: false,
-    perguntas: PERGUNTAS,
-    respostas: { q1: [1] },
-  },
-  {
-    id: 'a5',
-    titulo: 'Estatística descritiva',
-    turmaId: 'a-ea',
-    status: 'respondido',
-    enviadoEm: '05/08/26',
-    nota: 8,
-    compreensao: 'I',
-    mostrarGabarito: false,
-    perguntas: PERGUNTAS,
-    respostas: { q1: [0], q2: [0], q3: [0] },
-  },
-  {
-    id: 'a6',
-    titulo: 'Revisão de conceitos básicos',
-    turmaId: 'a-ea',
-    status: 'encerrado',
-    prazo: '01/08/26',
-    mostrarGabarito: false,
-    perguntas: PERGUNTAS,
-    respostas: {},
-  },
-]
 
 /* Regras (puras) */
 

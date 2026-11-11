@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { FormEvent } from 'react'
-import { CORES_EQUIPE, PERIODOS } from '../data/mock'
-import type { Equipe, Formulario, Pergunta, StatusFormulario } from '../data/mock'
+import { mensagemDeErro } from '../api/client'
+import { CORES_EQUIPE, PERIODOS } from '../data/tipos'
+import type { Equipe, Formulario, Pergunta, StatusFormulario } from '../data/tipos'
 import { useStore } from '../store'
 import { Avatar, ButtonBrown, ButtonGhost, Field, Icon, Modal, SelectField, StatusPill, TeamBadge, cx } from './ui'
 
@@ -14,10 +15,12 @@ export function gerarSigla(nome: string) {
   return letras.toUpperCase()
 }
 
-function Acoes({ concluir, onClose }: { concluir: string; onClose: () => void }) {
+function Acoes({ concluir, onClose, desabilitado }: { concluir: string; onClose: () => void; desabilitado?: boolean }) {
   return (
     <div className="flex w-full gap-3">
-      <ButtonBrown type="submit">{concluir}</ButtonBrown>
+      <ButtonBrown type="submit" disabled={desabilitado}>
+        {concluir}
+      </ButtonBrown>
       <ButtonGhost onClick={onClose}>Cancelar</ButtonGhost>
     </div>
   )
@@ -28,29 +31,24 @@ const opcoesPeriodo = PERIODOS.map((p) => ({ value: p, label: p }))
 /* Equipes */
 
 export function CriarEquipeModal({ onClose }: { onClose: () => void }) {
-  const { adicionarEquipe } = useStore()
+  const { adicionarEquipe, sessao } = useStore()
   const [nome, setNome] = useState('')
   const [periodo, setPeriodo] = useState('')
   const [erro, setErro] = useState('')
+  const [enviando, setEnviando] = useState(false)
 
-  function enviar(e: FormEvent) {
+  async function enviar(e: FormEvent) {
     e.preventDefault()
     if (!nome.trim() || !periodo) return setErro('Informe o nome e o período letivo.')
-    const equipe: Equipe = {
-      id: `eq-${Date.now()}`,
-      nome: nome.trim(),
-      sigla: gerarSigla(nome),
-      cor: CORES_EQUIPE[0],
-      periodo,
-      docente: 'Alberto',
-      totalAlunos: 0,
-      ultimoFormulario: 'Nenhum formulário ainda',
-      taxaResposta: 0,
-      dominioMedio: 0,
-      engajamento: 0,
+    setEnviando(true)
+    try {
+      await adicionarEquipe({ nome: nome.trim(), periodo, cor: CORES_EQUIPE[0] })
+      onClose()
+    } catch (e) {
+      setErro(mensagemDeErro(e))
+    } finally {
+      setEnviando(false)
     }
-    adicionarEquipe(equipe)
-    onClose()
   }
 
   return (
@@ -62,8 +60,8 @@ export function CriarEquipeModal({ onClose }: { onClose: () => void }) {
           <div className="flex w-full flex-col gap-1">
             <span className="text-[18px] text-ink">Docente</span>
             <div className="flex items-center gap-2.5 rounded-lg border border-placeholder bg-white p-3">
-              <Avatar letra="A" />
-              <span className="text-[16px] text-placeholder">Alberto</span>
+              <Avatar letra={(sessao?.nome ?? 'A')[0] ?? 'A'} />
+              <span className="text-[16px] text-placeholder">{sessao?.nome ?? ''}</span>
             </div>
           </div>
           {erro && (
@@ -72,7 +70,7 @@ export function CriarEquipeModal({ onClose }: { onClose: () => void }) {
             </p>
           )}
         </div>
-        <Acoes concluir="Concluir" onClose={onClose} />
+        <Acoes concluir="Concluir" onClose={onClose} desabilitado={enviando} />
         <p className="text-center text-[16px] text-[#555]">
           Novos alunos podem ser adicionados acessando a aba 'Alunos' dentro da equipe ou enviando o link de convite
         </p>
@@ -87,11 +85,16 @@ export function EditarEquipeModal({ equipe, onClose }: { equipe: Equipe; onClose
   const [periodo, setPeriodo] = useState(equipe.periodo)
   const [sigla, setSigla] = useState(equipe.sigla)
   const [cor, setCor] = useState(equipe.cor)
+  const [erro, setErro] = useState('')
 
-  function enviar(e: FormEvent) {
+  async function enviar(e: FormEvent) {
     e.preventDefault()
-    atualizarEquipe(equipe.id, { nome: nome.trim() || equipe.nome, periodo, sigla: sigla.trim().toUpperCase() || equipe.sigla, cor })
-    onClose()
+    try {
+      await atualizarEquipe(equipe.id, { nome: nome.trim() || equipe.nome, periodo, sigla: sigla.trim().toUpperCase() || equipe.sigla, cor })
+      onClose()
+    } catch (e) {
+      setErro(mensagemDeErro(e))
+    }
   }
 
   return (
@@ -121,6 +124,11 @@ export function EditarEquipeModal({ equipe, onClose }: { equipe: Equipe; onClose
               </div>
             </div>
           </div>
+          {erro && (
+            <p role="alert" className="text-[14px] text-diff-c">
+              {erro}
+            </p>
+          )}
         </div>
         <Acoes concluir="Concluir" onClose={onClose} />
       </form>
@@ -130,16 +138,60 @@ export function EditarEquipeModal({ equipe, onClose }: { equipe: Equipe; onClose
 
 /* Formulários */
 
-function PerguntasEditor({ perguntas, onChange }: { perguntas: Pergunta[]; onChange: (p: Pergunta[]) => void }) {
+/** dd/mm/aa (ou dd/mm/aaaa) → [dia, mês, ano]; `null` se inválido. */
+function lerDataBr(texto: string): [number, number, number] | null {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/.exec(texto.trim())
+  if (!m) return null
+  const ano = m[3]!.length === 2 ? 2000 + Number(m[3]) : Number(m[3])
+  const data = new Date(ano, Number(m[2]) - 1, Number(m[1]))
+  return data.getFullYear() === ano && data.getMonth() === Number(m[2]) - 1 && data.getDate() === Number(m[1]) ? [Number(m[1]), Number(m[2]), ano] : null
+}
+
+/** "24/09/26" + "08:30" → ISO; erro de validação vira `Error`. */
+function dataHoraParaIso(data: string, hora: string): string {
+  const d = lerDataBr(data)
+  if (!d) throw new Error('Data inválida. Use o formato dd/mm/aa (ex.: 24/09/26).')
+  const h = /^(\d{1,2}):(\d{2})$/.exec(hora.trim() || '00:00')
+  if (!h || Number(h[1]) > 23 || Number(h[2]) > 59) throw new Error('Horário inválido. Use o formato hh:mm (ex.: 08:30).')
+  return new Date(d[2], d[1] - 1, d[0], Number(h[1]), Number(h[2])).toISOString()
+}
+
+/** "20/09/26" → "2026-09-20" (o prazo vale até o fim do dia). */
+function prazoParaApi(texto: string): string {
+  const d = lerDataBr(texto)
+  if (!d) throw new Error('Prazo inválido. Use o formato dd/mm/aa (ex.: 20/09/26).')
+  return `${d[2]}-${String(d[1]).padStart(2, '0')}-${String(d[0]).padStart(2, '0')}`
+}
+
+/** Remove opções vazias e reindexa o gabarito. */
+function normalizarPergunta(p: Pergunta): Pergunta {
+  const mantidas = p.opcoes.map((texto, i) => ({ texto: texto.trim(), i })).filter((o) => o.texto)
+  const gabarito = (p.gabarito ?? []).flatMap((g) => {
+    const novo = mantidas.findIndex((o) => o.i === g)
+    return novo >= 0 ? [novo] : []
+  })
+  return { ...p, enunciado: p.enunciado.trim(), opcoes: mantidas.map((o) => o.texto), marcadas: [], gabarito }
+}
+
+function PerguntasEditor({ perguntas, onChange, somenteLeitura }: { perguntas: Pergunta[]; onChange: (p: Pergunta[]) => void; somenteLeitura?: boolean }) {
   const [editando, setEditando] = useState<string | null>(null)
 
-  function atualizar(id: string, enunciado: string) {
-    onChange(perguntas.map((p) => (p.id === id ? { ...p, enunciado } : p)))
-  }
+  const atualizar = (id: string, mudanca: Partial<Pergunta>) => onChange(perguntas.map((p) => (p.id === id ? { ...p, ...mudanca } : p)))
   function adicionar() {
-    const nova: Pergunta = { id: `q-${Date.now()}`, enunciado: '', tipo: 'unica', opcoes: [], marcadas: [] }
+    const nova: Pergunta = { id: `novo-${Date.now()}`, enunciado: '', tipo: 'unica', opcoes: ['', ''], marcadas: [], gabarito: [] }
     onChange([...perguntas, nova])
     setEditando(nova.id)
+  }
+  function alternarCorreta(p: Pergunta, indice: number) {
+    const atual = p.gabarito ?? []
+    if (p.tipo === 'unica') return atualizar(p.id, { gabarito: atual.includes(indice) ? [] : [indice] })
+    atualizar(p.id, { gabarito: atual.includes(indice) ? atual.filter((g) => g !== indice) : [...atual, indice] })
+  }
+  function removerOpcao(p: Pergunta, indice: number) {
+    atualizar(p.id, {
+      opcoes: p.opcoes.filter((_, i) => i !== indice),
+      gabarito: (p.gabarito ?? []).filter((g) => g !== indice).map((g) => (g > indice ? g - 1 : g)),
+    })
   }
 
   return (
@@ -147,47 +199,110 @@ function PerguntasEditor({ perguntas, onChange }: { perguntas: Pergunta[]; onCha
       <span className="text-[18px] text-ink">Perguntas</span>
       <ul className="flex flex-col gap-1">
         {perguntas.map((p, i) => (
-          <li key={p.id} className="flex items-center gap-2 rounded-lg border border-placeholder bg-white px-3 py-3 text-[16px] text-placeholder">
-            {editando === p.id ? (
-              <input
-                autoFocus
-                aria-label={`Pergunta ${i + 1}`}
-                value={p.enunciado}
-                onChange={(e) => atualizar(p.id, e.target.value)}
-                onBlur={() => setEditando(null)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    setEditando(null)
-                  }
-                }}
-                placeholder="Digite a pergunta"
-                className="min-w-0 flex-1 bg-transparent text-ink outline-none"
-              />
-            ) : (
+          <li key={p.id} className="flex flex-col gap-2 rounded-lg border border-placeholder bg-white px-3 py-3 text-[16px] text-placeholder">
+            <div className="flex items-center gap-2">
               <span className="min-w-0 flex-1 truncate">{`${i + 1}. ${p.enunciado || 'Nova pergunta'}`}</span>
+              {!somenteLeitura && (
+                <>
+                  <button
+                    type="button"
+                    aria-label={`Editar pergunta ${i + 1}`}
+                    aria-expanded={editando === p.id}
+                    onClick={() => setEditando(editando === p.id ? null : p.id)}
+                    className="flex cursor-pointer text-[18px] text-muted"
+                  >
+                    <Icon name="edit_note" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Excluir pergunta ${i + 1}`}
+                    onClick={() => onChange(perguntas.filter((x) => x.id !== p.id))}
+                    className="flex cursor-pointer text-[18px] text-muted"
+                  >
+                    <Icon name="delete" />
+                  </button>
+                </>
+              )}
+            </div>
+            {editando === p.id && !somenteLeitura && (
+              <div className="flex flex-col gap-2 border-t border-line pt-2">
+                <input
+                  autoFocus
+                  aria-label={`Enunciado da pergunta ${i + 1}`}
+                  value={p.enunciado}
+                  onChange={(e) => atualizar(p.id, { enunciado: e.target.value })}
+                  placeholder="Digite a pergunta"
+                  className="rounded-lg border border-line-input bg-white px-3 py-2 text-ink outline-none focus-visible:border-ink"
+                />
+                <div role="radiogroup" aria-label={`Tipo da pergunta ${i + 1}`} className="flex gap-4 text-[14px] text-ink">
+                  {(['unica', 'multipla'] as const).map((tipo) => (
+                    <label key={tipo} className="flex cursor-pointer items-center gap-1.5">
+                      <input
+                        type="radio"
+                        name={`tipo-${p.id}`}
+                        checked={p.tipo === tipo}
+                        onChange={() => atualizar(p.id, { tipo, gabarito: tipo === 'unica' ? (p.gabarito ?? []).slice(0, 1) : (p.gabarito ?? []) })}
+                        className="accent-sidebar"
+                      />
+                      {tipo === 'unica' ? 'Escolha única' : 'Múltipla escolha'}
+                    </label>
+                  ))}
+                </div>
+                <p className="text-[13px] text-muted">Marque a(s) opção(ões) correta(s) para gerar a nota (opcional).</p>
+                <ul className="flex flex-col gap-1.5">
+                  {p.opcoes.map((op, j) => (
+                    <li key={j} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        aria-label={`Opção ${j + 1} da pergunta ${i + 1} é correta`}
+                        checked={(p.gabarito ?? []).includes(j)}
+                        onChange={() => alternarCorreta(p, j)}
+                        className="size-4 shrink-0 cursor-pointer accent-sidebar"
+                      />
+                      <input
+                        aria-label={`Opção ${j + 1} da pergunta ${i + 1}`}
+                        value={op}
+                        onChange={(e) => atualizar(p.id, { opcoes: p.opcoes.map((x, k) => (k === j ? e.target.value : x)) })}
+                        placeholder={`Opção ${j + 1}`}
+                        className="min-w-0 flex-1 rounded-lg border border-line-input bg-white px-2 py-1.5 text-ink outline-none focus-visible:border-ink"
+                      />
+                      {p.opcoes.length > 2 && (
+                        <button type="button" aria-label={`Remover opção ${j + 1} da pergunta ${i + 1}`} onClick={() => removerOpcao(p, j)} className="flex cursor-pointer text-[18px] text-muted">
+                          <Icon name="close" />
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  onClick={() => atualizar(p.id, { opcoes: [...p.opcoes, ''] })}
+                  className="w-fit cursor-pointer rounded-lg border border-[#c9b8a0] bg-white px-2 py-1 text-[14px] text-[#a08d77]"
+                >
+                  + Opção
+                </button>
+              </div>
             )}
-            <button type="button" aria-label={`Editar pergunta ${i + 1}`} onClick={() => setEditando(p.id)} className="flex cursor-pointer text-[18px] text-muted">
-              <Icon name="edit_note" />
-            </button>
-            <button
-              type="button"
-              aria-label={`Excluir pergunta ${i + 1}`}
-              onClick={() => onChange(perguntas.filter((x) => x.id !== p.id))}
-              className="flex cursor-pointer text-[18px] text-muted"
-            >
-              <Icon name="delete" />
-            </button>
           </li>
         ))}
       </ul>
-      <button
-        type="button"
-        onClick={adicionar}
-        className="mt-0.5 w-fit cursor-pointer rounded-lg border border-[#c9b8a0] bg-white px-2 py-1 text-[16px] text-[#a08d77]"
-      >
-        + Adicionar
-      </button>
+      {!somenteLeitura && (
+        <button type="button" onClick={adicionar} className="mt-0.5 w-fit cursor-pointer rounded-lg border border-[#c9b8a0] bg-white px-2 py-1 text-[16px] text-[#a08d77]">
+          + Adicionar
+        </button>
+      )}
+    </div>
+  )
+}
+
+function CampoPrazoEGabarito({ prazo, setPrazo, gabarito, setGabarito }: { prazo: string; setPrazo: (v: string) => void; gabarito: boolean; setGabarito: (v: boolean) => void }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <Field label="Prazo para responder (opcional)" name="prazo" placeholder="Ex: 30/09/26" value={prazo} onChange={(e) => setPrazo(e.target.value)} />
+      <label className="flex w-fit cursor-pointer items-center gap-2 text-[16px] text-[#a08d77]">
+        <input type="checkbox" checked={gabarito} onChange={(e) => setGabarito(e.target.checked)} className="size-4 cursor-pointer accent-sidebar" />
+        Liberar o gabarito para os alunos depois de responderem
+      </label>
     </div>
   )
 }
@@ -199,27 +314,32 @@ export function CriarFormularioModal({ onClose }: { onClose: () => void }) {
   const [data, setData] = useState('')
   const [hora, setHora] = useState('')
   const [postar, setPostar] = useState(false)
+  const [prazo, setPrazo] = useState('')
+  const [gabarito, setGabarito] = useState(false)
   const [perguntas, setPerguntas] = useState<Pergunta[]>([])
   const [erro, setErro] = useState('')
+  const [enviando, setEnviando] = useState(false)
   const equipe = equipes.find((e) => e.id === equipeId)
 
-  function enviar(e: FormEvent) {
+  async function enviar(e: FormEvent) {
     e.preventDefault()
     if (!nome.trim() || !equipe) return setErro('Informe o nome do formulário e a equipe.')
-    const status: StatusFormulario = postar ? 'ativo' : data ? 'agendado' : 'rascunho'
-    const form: Formulario = {
-      id: `f-${Date.now()}`,
-      titulo: nome.trim(),
-      equipeId: equipe.id,
-      periodo: equipe.periodo,
-      status,
-      respostas: 0,
-      total: equipe.totalAlunos,
-      data: data || new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }),
-      perguntas: perguntas.filter((p) => p.enunciado.trim()),
+    setEnviando(true)
+    try {
+      await adicionarFormulario({
+        titulo: nome.trim(),
+        turmaId: equipe.id,
+        perguntas: perguntas.filter((p) => p.enunciado.trim()).map(normalizarPergunta),
+        ...(postar ? { postar: true } : data.trim() ? { publicarEm: dataHoraParaIso(data, hora) } : {}),
+        ...(prazo.trim() ? { prazo: prazoParaApi(prazo) } : {}),
+        ...(gabarito ? { mostrarGabarito: true } : {}),
+      })
+      onClose()
+    } catch (e) {
+      setErro(mensagemDeErro(e))
+    } finally {
+      setEnviando(false)
     }
-    adicionarFormulario(form)
-    onClose()
   }
 
   return (
@@ -246,6 +366,7 @@ export function CriarFormularioModal({ onClose }: { onClose: () => void }) {
               Postar ao criar formulário
             </label>
           </div>
+          <CampoPrazoEGabarito prazo={prazo} setPrazo={setPrazo} gabarito={gabarito} setGabarito={setGabarito} />
           <PerguntasEditor perguntas={perguntas} onChange={setPerguntas} />
           {erro && (
             <p role="alert" className="text-[14px] text-diff-c">
@@ -253,17 +374,18 @@ export function CriarFormularioModal({ onClose }: { onClose: () => void }) {
             </p>
           )}
         </div>
-        <Acoes concluir="Criar" onClose={onClose} />
+        <Acoes concluir="Criar" onClose={onClose} desabilitado={enviando} />
       </form>
     </Modal>
   )
 }
 
 const DESCRICAO_STATUS: Record<StatusFormulario, string> = {
-  ativo: 'Aberto para alunos responderem',
   agendado: 'Publicação agendada',
-  inativo: 'Fechado para respostas',
   rascunho: 'Ainda não publicado',
+  fechado: 'Fechado para respostas',
+  aberto: 'Aberto para alunos responderem',
+  concluido: 'Avaliação concluída',
 }
 
 export function EditarFormularioModal({ formulario, onClose }: { formulario: Formulario; onClose: () => void }) {
@@ -271,16 +393,34 @@ export function EditarFormularioModal({ formulario, onClose }: { formulario: For
   const equipe = equipes.find((e) => e.id === formulario.equipeId)
   const [nome, setNome] = useState(formulario.titulo)
   const [status, setStatus] = useState<StatusFormulario>(formulario.status)
-  const [perguntas, setPerguntas] = useState<Pergunta[]>(formulario.perguntas)
+  const [perguntas, setPerguntas] = useState<Pergunta[]>(formulario.perguntas.map((p) => ({ ...p, gabarito: p.gabarito ?? [] })))
+  const [data, setData] = useState('')
+  const [hora, setHora] = useState('')
+  const [prazo, setPrazo] = useState(formulario.prazo ?? '')
+  const [gabarito, setGabarito] = useState(formulario.mostrarGabarito ?? false)
+  const [erro, setErro] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  const perguntasEditaveis = formulario.status === 'rascunho' || formulario.status === 'agendado'
+  const precisaData = status === 'agendado' && formulario.status !== 'agendado'
 
-  function enviar(e: FormEvent) {
+  async function enviar(e: FormEvent) {
     e.preventDefault()
-    atualizarFormulario(formulario.id, {
-      titulo: nome.trim() || formulario.titulo,
-      status,
-      perguntas: perguntas.filter((p) => p.enunciado.trim()),
-    })
-    onClose()
+    setEnviando(true)
+    try {
+      await atualizarFormulario(formulario.id, {
+        titulo: nome.trim() || formulario.titulo,
+        ...(status !== formulario.status ? { status } : {}),
+        ...(precisaData ? { publicarEm: dataHoraParaIso(data, hora) } : {}),
+        ...(perguntasEditaveis ? { perguntas: perguntas.filter((p) => p.enunciado.trim()).map(normalizarPergunta) } : {}),
+        mostrarGabarito: gabarito,
+        ...(prazo.trim() !== (formulario.prazo ?? '') ? { prazo: prazo.trim() ? prazoParaApi(prazo) : null } : {}),
+      })
+      onClose()
+    } catch (e) {
+      setErro(mensagemDeErro(e))
+    } finally {
+      setEnviando(false)
+    }
   }
 
   return (
@@ -297,6 +437,12 @@ export function EditarFormularioModal({ formulario, onClose }: { formulario: For
             leading={<StatusPill status={status} />}
             leadingPad={96}
           />
+          {precisaData && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr]">
+              <Field label="Data de publicação" name="data" placeholder="Ex: 24/09/26" value={data} onChange={(e) => setData(e.target.value)} />
+              <Field label="Horário" name="hora" placeholder="Ex: 00:00" value={hora} onChange={(e) => setHora(e.target.value)} />
+            </div>
+          )}
           <div className="flex w-full flex-col gap-1">
             <span className="text-[18px] text-ink">Período letivo</span>
             <div className="flex items-center gap-2 rounded-lg border border-placeholder bg-white p-3 text-[16px] text-placeholder">
@@ -304,9 +450,16 @@ export function EditarFormularioModal({ formulario, onClose }: { formulario: For
               {equipe?.nome}
             </div>
           </div>
-          <PerguntasEditor perguntas={perguntas} onChange={setPerguntas} />
+          <CampoPrazoEGabarito prazo={prazo} setPrazo={setPrazo} gabarito={gabarito} setGabarito={setGabarito} />
+          <PerguntasEditor perguntas={perguntas} onChange={setPerguntas} somenteLeitura={!perguntasEditaveis} />
+          {!perguntasEditaveis && <p className="text-[14px] text-muted">Formulários já publicados não podem ter as perguntas alteradas.</p>}
+          {erro && (
+            <p role="alert" className="text-[14px] text-diff-c">
+              {erro}
+            </p>
+          )}
         </div>
-        <Acoes concluir="Concluir" onClose={onClose} />
+        <Acoes concluir="Concluir" onClose={onClose} desabilitado={enviando} />
       </form>
     </Modal>
   )
@@ -381,11 +534,6 @@ function PerfilCheck({
   )
 }
 
-const EMAILS_PERFIL = {
-  aluno: 'marina.santos@universidade.edu.br',
-  professor: 'alberto.silva@universidade.edu.br',
-} as const
-
 function iniciaisDoNome(nome: string) {
   return nome
     .split(/\s+/)
@@ -401,8 +549,8 @@ export function PerfilModal({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate()
 
   const papel = sessao?.papel ?? 'professor'
-  const nome = sessao?.nome ?? 'Alberto'
-  const email = EMAILS_PERFIL[papel]
+  const nome = sessao?.nome ?? ''
+  const email = sessao?.email ?? ''
   const ehAluno = papel === 'aluno'
 
   const [rascunho, setRascunho] = useState(preferencias)
@@ -414,9 +562,15 @@ export function PerfilModal({ onClose }: { onClose: () => void }) {
     }))
   }
 
-  function concluir() {
-    atualizarPreferencias(rascunho)
-    onClose()
+  const [erro, setErro] = useState('')
+
+  async function concluir() {
+    try {
+      await atualizarPreferencias(rascunho)
+      onClose()
+    } catch (e) {
+      setErro(mensagemDeErro(e))
+    }
   }
 
   function encerrarSessao() {
@@ -517,7 +671,7 @@ export function PerfilModal({ onClose }: { onClose: () => void }) {
           checked={rascunho.acessibilidade}
           onChange={(valor) => {
             atualizar('acessibilidade', valor)
-            atualizarPreferencias({ acessibilidade: valor })
+            atualizarPreferencias({ acessibilidade: valor }).catch((e) => setErro(mensagemDeErro(e)))
           }}
         />
 
@@ -537,6 +691,12 @@ export function PerfilModal({ onClose }: { onClose: () => void }) {
             <option value="alto-contraste">Alto-contraste</option>
           </select>
         </div>
+
+        {erro && (
+          <p role="alert" className="text-[14px] text-diff-c">
+            {erro}
+          </p>
+        )}
 
         <div className="flex w-full flex-col gap-3 sm:flex-row">
           <ButtonBrown type="button" onClick={concluir}>
