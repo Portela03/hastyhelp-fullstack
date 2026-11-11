@@ -43,7 +43,7 @@ describe('identidade — login', () => {
     const ctx = criarContexto()
     await ctx.uc.identidade.cadastrar.executar(dadosAluno)
     const { token, usuario } = await ctx.uc.identidade.autenticar.executar({ email: 'sarah@escola.com', senha: 'senha1234', papel: 'aluno' })
-    expect(ctx.infra.tokens.verificar(token)).toEqual({ sub: usuario.id, papel: 'aluno' })
+    expect(ctx.infra.tokens.verificar(token)).toMatchObject({ sub: usuario.id, papel: 'aluno' })
   })
   it('R-05 senha errada, e-mail inexistente e papel trocado dão a mesma resposta', async () => {
     const ctx = criarContexto()

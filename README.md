@@ -20,6 +20,8 @@ Tudo em Docker (banco + API): `docker compose up --build` (API em `http://localh
 
 Logins de demonstração (senha `senha1234`): professor `alberto@hastyhelp.dev`; alunos `sarah.chen@`, `james.park@`, `michael.torres@`, `lisa.anderson@hastyhelp.dev`. Links de convite: `/convite/pdm-2026` e `/convite/ea-2026`.
 
+Recuperação de senha: não há envio de e-mail. O link de redefinição vai para a **caixa de saída** (log do servidor e, com `EXPOR_CAIXA_DE_SAIDA=true`, `GET /api/dev/caixa-de-saida?para=<e-mail>`); o professor também pode gerar o link de um aluno da equipe pelo menu `...` da aba Alunos.
+
 ## Testes
 
 ```bash

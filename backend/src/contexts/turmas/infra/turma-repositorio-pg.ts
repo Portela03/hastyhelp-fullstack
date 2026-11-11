@@ -53,6 +53,9 @@ export class TurmaRepositorioPg implements TurmaRepositorio {
   async matricular(turmaId: string, alunoId: string) {
     await this.pool.query('INSERT INTO matriculas (turma_id, aluno_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [turmaId, alunoId])
   }
+  async desmatricular(turmaId: string, alunoId: string) {
+    await this.pool.query('DELETE FROM matriculas WHERE turma_id = $1 AND aluno_id = $2', [turmaId, alunoId])
+  }
   async alunosIds(turmaId: string) {
     const r = await this.pool.query<{ aluno_id: string }>('SELECT aluno_id FROM matriculas WHERE turma_id = $1', [turmaId])
     return r.rows.map((x) => x.aluno_id)

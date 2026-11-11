@@ -29,7 +29,7 @@ export default defineConfig({
     {
       command: 'npm run start --prefix ../backend',
       url: `http://localhost:${PORTA_API}/api/health`,
-      env: { PORT: String(PORTA_API), DATABASE_URL, JWT_SECRET: 'e2e', SEED: 'false' },
+      env: { PORT: String(PORTA_API), DATABASE_URL, JWT_SECRET: 'e2e', SEED: 'false', APP_URL: `http://localhost:${PORTA_WEB}`, EXPOR_CAIXA_DE_SAIDA: 'true' },
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
     },

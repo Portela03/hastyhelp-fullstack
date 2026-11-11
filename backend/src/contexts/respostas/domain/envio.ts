@@ -16,6 +16,10 @@ export interface Envio {
   nota?: number
   compreensao?: NivelDeCompreensao
   observacao?: string
+  /** Moderação do professor (R-95, R-96). */
+  observacaoOculta?: boolean
+  respostaProfessor?: string
+  respondidaEm?: Date
   enviadoEm?: Date
   atualizadoEm: Date
 }
@@ -56,6 +60,24 @@ export function enviarEnvio(envio: Envio, perguntas: Pergunta[], observacao: str
     ...(compreensao ? { compreensao } : {}),
     ...(obs ? { observacao: obs } : {}),
   }
+}
+
+export const LIMITE_RESPOSTA_PROFESSOR = 500
+
+/** R-95/R-96: o professor responde e/ou oculta a observação de um envio. */
+export function moderarObservacao(envio: Envio, mudanca: { resposta?: string | null; oculta?: boolean }, agora: Date): Envio {
+  if (!envio.observacao) throw new ErroDeDominio('SEM_OBSERVACAO', 'Este envio não tem observação.')
+  let atual = envio
+  if (mudanca.oculta !== undefined) atual = { ...atual, observacaoOculta: mudanca.oculta }
+  if (mudanca.resposta !== undefined) {
+    const texto = (mudanca.resposta ?? '').trim()
+    if (texto.length > LIMITE_RESPOSTA_PROFESSOR) {
+      throw new ErroDeDominio('RESPOSTA_INVALIDA', `A resposta pode ter no máximo ${LIMITE_RESPOSTA_PROFESSOR} caracteres.`, 400)
+    }
+    const { respostaProfessor: _r, respondidaEm: _d, ...resto } = atual
+    atual = texto ? { ...resto, respostaProfessor: texto, respondidaEm: agora } : resto
+  }
+  return atual
 }
 
 export function statusParaAluno(envio: Envio | undefined, aceitaRespostas: boolean): StatusParaAluno {

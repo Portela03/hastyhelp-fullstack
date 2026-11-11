@@ -28,7 +28,7 @@ export class MetricasDoProfessor {
     const turmas = (await this.d.turmas.listarDoDocente(ator.id))
       .filter((t) => !filtro.periodo || t.periodo === filtro.periodo)
       .filter((t) => !filtro.turmaId || t.id === filtro.turmaId)
-    const formularios = (await materializarTodos(this.d.formularios, this.d.relogio, await this.d.formularios.listarPorTurmas(turmas.map((t) => t.id))))
+    const formularios = (await materializarTodos(this.d, await this.d.formularios.listarPorTurmas(turmas.map((t) => t.id))))
       .filter((f) => !filtro.formularioId || f.id === filtro.formularioId)
       .filter((f) => !filtro.status || f.status === filtro.status)
     const publicados = formularios.filter(visivelParaAluno)

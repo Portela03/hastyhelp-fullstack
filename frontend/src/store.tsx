@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { ErroApi, api, aoSessaoExpirar, definirToken, mensagemDeErro } from './api/client'
+import { ErroApi, api, aoSessaoExpirar, aoTokensRenovados, definirTokens, mensagemDeErro, tokensAtuais } from './api/client'
 import { paraAutoavaliacao, paraEquipe, paraFormulario, perguntaParaApi } from './api/mapeadores'
 import type { AutoavaliacaoDTO, FormularioDTO, TurmaDTO } from './api/mapeadores'
 import type { AutoavaliacaoAluno, Papel, Sessao } from './data/aluno'
@@ -93,8 +93,8 @@ function lerSessao(): Sessao | null {
   try {
     const bruto = sessionStorage.getItem(CHAVE_SESSAO)
     const sessao = bruto ? (JSON.parse(bruto) as Sessao) : null
-    if (sessao?.token) definirToken(sessao.token)
-    return sessao?.token ? sessao : null
+    if (sessao?.token && sessao.refreshToken) definirTokens({ token: sessao.token, refreshToken: sessao.refreshToken })
+    return sessao?.token && sessao.refreshToken ? sessao : null
   } catch {
     return null
   }
@@ -143,8 +143,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const sair = useCallback(() => {
+    const atuais = tokensAtuais()
+    // revoga a sessão no servidor (R-72); se falhar, o refresh expira sozinho
+    if (atuais) void api('POST', '/auth/logout', { refreshToken: atuais.refreshToken }).catch(() => undefined)
     gravarSessao(null)
-    definirToken(null)
+    definirTokens(null)
     papelRef.current = null
     setSessao(null)
     limparDados()
@@ -152,7 +155,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     aoSessaoExpirar(sair)
-    return () => aoSessaoExpirar(null)
+    // access token renovado: guarda o novo par sem refazer o carregamento dos dados
+    aoTokensRenovados((novos) =>
+      setSessao((atual) => {
+        if (!atual) return atual
+        const nova = { ...atual, ...novos }
+        gravarSessao(nova)
+        return nova
+      }),
+    )
+    return () => {
+      aoSessaoExpirar(null)
+      aoTokensRenovados(null)
+    }
   }, [sair])
 
   /** Busca tudo o que a sessão precisa; chamada após login e após cada mudança de dados. */
@@ -186,12 +201,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => {
       ativo = false
     }
-  }, [sessao, recarregar])
+    // só reage a entrar/sair (a renovação do token troca `sessao`, mas não o usuário)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessao?.email, recarregar])
 
   const entrar = useCallback(async (email: string, senha: string, papel: Papel) => {
-    const r = await api<{ token: string; usuario: UsuarioDTO }>('POST', '/auth/login', { email, senha, papel })
-    const nova: Sessao = { papel: r.usuario.papel, nome: r.usuario.nome, email: r.usuario.email, token: r.token }
-    definirToken(r.token)
+    const r = await api<{ token: string; refreshToken: string; usuario: UsuarioDTO }>('POST', '/auth/login', { email, senha, papel })
+    const nova: Sessao = { papel: r.usuario.papel, nome: r.usuario.nome, email: r.usuario.email, token: r.token, refreshToken: r.refreshToken }
+    definirTokens({ token: r.token, refreshToken: r.refreshToken })
     papelRef.current = nova.papel
     gravarSessao(nova)
     setCarregando(true)

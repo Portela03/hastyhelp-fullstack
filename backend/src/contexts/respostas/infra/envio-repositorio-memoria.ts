@@ -8,6 +8,10 @@ export class EnvioRepositorioMemoria implements EnvioRepositorio {
   async salvar(e: Envio) {
     this.itens.set(this.chave(e.formularioId, e.alunoId), structuredClone(e))
   }
+  async porId(id: string) {
+    const e = [...this.itens.values()].find((x) => x.id === id)
+    return e ? structuredClone(e) : undefined
+  }
   async porFormularioEAluno(formularioId: string, alunoId: string) {
     const e = this.itens.get(this.chave(formularioId, alunoId))
     return e ? structuredClone(e) : undefined
@@ -23,6 +27,9 @@ export class EnvioRepositorioMemoria implements EnvioRepositorio {
   }
   async excluirDoFormulario(formularioId: string) {
     for (const [k, e] of this.itens) if (e.formularioId === formularioId) this.itens.delete(k)
+  }
+  async excluirDoAlunoNaTurma(turmaId: string, alunoId: string) {
+    for (const [k, e] of this.itens) if (e.turmaId === turmaId && e.alunoId === alunoId) this.itens.delete(k)
   }
   async excluirDaTurma(turmaId: string) {
     for (const [k, e] of this.itens) if (e.turmaId === turmaId) this.itens.delete(k)

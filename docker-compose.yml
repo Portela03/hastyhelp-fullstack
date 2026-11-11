@@ -22,6 +22,8 @@ services:
       JWT_SECRET: troque-em-producao
       PORT: 3333
       SEED: "true"
+      APP_URL: http://localhost:5173
+      EXPOR_CAIXA_DE_SAIDA: "true"
     ports:
       - "3333:3333"
     depends_on:

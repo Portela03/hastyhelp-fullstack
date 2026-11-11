@@ -3,6 +3,7 @@ import { Navigate, Outlet, useNavigate, useOutletContext, useParams } from 'reac
 import sortIcon from '../assets/figma/sort.svg'
 import { AppShell, Banner, DataTable, Section, TabBar, Toolbar } from '../components/layout'
 import { CriarFormularioModal, EditarFormularioModal } from '../components/modals'
+import { PreviaAlunoModal, RespostasDoAlunoModal } from '../components/modals-alunos'
 import { Avatar, ButtonPrimary, DifficultyLetter, FilterSelect, KpiCard, Panel, SearchBox, SortButton, StatusPill, TeamBadge, cx, OptionsMenu } from '../components/ui'
 import { api } from '../api/client'
 import { useApi } from '../api/use-api'
@@ -126,6 +127,7 @@ export function FormularioDetalhe() {
   const navigate = useNavigate()
   const form = formularios.find((f) => f.id === id)
   const [editar, setEditar] = useState(false)
+  const [previa, setPrevia] = useState(false)
   const [mensagem, setMensagem] = useState('')
   if (!form) return <Navigate to="/avaliacoes" replace />
   const equipe = equipes.find((e) => e.id === form.equipeId)
@@ -154,6 +156,7 @@ export function FormularioDetalhe() {
                 icon: 'edit',
                 onClick: () => setEditar(true),
               },
+              { label: 'Ver como aluno', icon: 'visibility', onClick: () => setPrevia(true) },
               ...acoesDeStatus(form, (status) => executar(() => atualizarFormulario(form.id, { status }))),
               {
                 label: 'Excluir formulário',
@@ -190,6 +193,7 @@ export function FormularioDetalhe() {
       />
       <Outlet context={form} />
       {editar && <EditarFormularioModal formulario={form} onClose={() => setEditar(false)} />}
+      {previa && <PreviaAlunoModal formulario={form} onClose={() => setPrevia(false)} />}
     </AppShell>
   )
 }
@@ -276,18 +280,18 @@ interface AlunosFormularioDTO {
 export function FormularioAlunos() {
   const form = useForm()
   const { dados, erro } = useApi<AlunosFormularioDTO>(`/formularios/${form.id}/alunos`, form)
+  const [respostasDe, setRespostasDe] = useState<{ id: string; nome: string } | null>(null)
   if (erro) return <p role="alert" className="text-[16px] text-diff-c">{erro}</p>
   if (!dados) return <p role="status" className="text-[16px] text-muted">Carregando…</p>
   const total = dados.responderam.length + dados.visualizaram.length + dados.pendentes.length
-  const menu = (nome: string) => (
-    <button type="button" aria-label={`Ações de ${nome}`} className="cursor-pointer font-inter">
-      ...
-    </button>
+  const menu = (aluno: { id: string; nome: string }) => (
+    <OptionsMenu key="m" label={`Ações de ${aluno.nome}`} items={[{ label: 'Ver respostas', icon: 'visibility', onClick: () => setRespostasDe(aluno) }]} />
   )
   const simples = (lista: Array<{ id: string; nome: string }>, deslocamento: number) =>
-    lista.map((a, i) => [<AlunoCell key={a.id} nome={a.nome} cor={corDe(i + deslocamento)} iniciais={iniciaisDe(a.nome)} />])
+    lista.map((a, i) => [<AlunoCell key={a.id} nome={a.nome} cor={corDe(i + deslocamento)} iniciais={iniciaisDe(a.nome)} />, menu(a)])
   return (
     <div className="flex flex-col gap-4">
+      {respostasDe && <RespostasDoAlunoModal nome={respostasDe.nome} caminho={`/formularios/${form.id}/alunos/${respostasDe.id}`} onClose={() => setRespostasDe(null)} />}
       <Section titulo={`Responderam (${dados.responderam.length}/${total})`}>
         <DataTable
           colunas={[
@@ -300,15 +304,15 @@ export function FormularioAlunos() {
             <AlunoCell key={a.id} nome={a.nome} cor={corDe(i)} iniciais={iniciaisDe(a.nome)} />,
             <strong key="b">{formatarNota(a.nota)}</strong>,
             a.nivel ? <DifficultyLetter key="n" letra={a.nivel} className="!font-normal" /> : '—',
-            menu(a.nome),
+            menu(a),
           ])}
         />
       </Section>
       <Section titulo={`Visualizaram (${dados.visualizaram.length}/${total})`}>
-        <DataTable colunas={[{ titulo: 'Aluno' }]} linhas={simples(dados.visualizaram, 2)} />
+        <DataTable colunas={[{ titulo: 'Aluno' }, { titulo: 'Ação', largura: '120px', centro: true }]} linhas={simples(dados.visualizaram, 2)} />
       </Section>
       <Section titulo={`Pendente (${dados.pendentes.length}/${total})`}>
-        <DataTable colunas={[{ titulo: 'Aluno' }]} linhas={simples(dados.pendentes, 4)} />
+        <DataTable colunas={[{ titulo: 'Aluno' }, { titulo: 'Ação', largura: '120px', centro: true }]} linhas={simples(dados.pendentes, 4)} />
       </Section>
     </div>
   )
@@ -326,16 +330,84 @@ interface ResumoFormularioDTO {
   taxaResposta: number
   notaMedia: number | null
   totalObservacoes: number
-  observacoes: Array<{ texto: string; alunos: number }>
+  observacoes: Array<{ envioId: string; alunoId: string; aluno: string; texto: string; resposta: string | null; oculta: boolean }>
   distribuicao: Record<Dificuldade, number>
   maiorDificuldade: Dificuldade | null
   dificuldadesGerais: Array<{ titulo: string; total: number }>
   maiorDificuldadePergunta: { numero: number; enunciado: string } | null
 }
 
+type Observacao = ResumoFormularioDTO['observacoes'][number]
+
+/** R-95/R-96: o professor responde e oculta/reexibe cada observação. */
+function ObservacaoItem({ formularioId, o, aoMudar }: { formularioId: string; o: Observacao; aoMudar: () => Promise<void> }) {
+  const { executar } = useStore()
+  const [respondendo, setRespondendo] = useState(false)
+  const [texto, setTexto] = useState(o.resposta ?? '')
+  const moderar = (corpo: { resposta?: string | null; oculta?: boolean }) =>
+    executar(async () => {
+      await api('PATCH', `/formularios/${formularioId}/observacoes/${o.envioId}`, corpo)
+      await aoMudar()
+    })
+  return (
+    <li className={cx('flex flex-col gap-1.5 rounded-lg border border-line bg-white p-3', o.oculta && 'opacity-70')}>
+      <p className="text-[12px] font-semibold text-muted">{o.aluno}</p>
+      <p className="text-[14px] text-ink">{`"${o.texto}"`}</p>
+      {o.resposta && !respondendo && (
+        <p className="rounded-md bg-panel px-2 py-1 text-[13px] text-ink">
+          <strong>Sua resposta:</strong> {o.resposta}
+        </p>
+      )}
+      {respondendo && (
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor={`resp-${o.envioId}`} className="sr-only">
+            {`Resposta para ${o.aluno}`}
+          </label>
+          <textarea
+            id={`resp-${o.envioId}`}
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            maxLength={500}
+            rows={3}
+            placeholder="Escreva uma resposta para o aluno"
+            className="rounded-lg border border-line-input bg-white px-2 py-1.5 text-[14px] text-ink outline-none focus-visible:border-ink"
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                await moderar({ resposta: texto })
+                setRespondendo(false)
+              }}
+              className="cursor-pointer rounded-lg border border-ink bg-btn px-2 py-1 text-[14px] text-ink"
+            >
+              Enviar resposta
+            </button>
+            <button type="button" onClick={() => setRespondendo(false)} className="cursor-pointer px-2 py-1 text-[14px] text-muted">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-3 text-[13px]">
+        {!respondendo && (
+          <button type="button" onClick={() => setRespondendo(true)} className="cursor-pointer text-muted underline">
+            {o.resposta ? 'Editar resposta' : 'Responder'}
+          </button>
+        )}
+        <button type="button" onClick={() => moderar({ oculta: !o.oculta })} className="cursor-pointer text-muted underline">
+          {o.oculta ? 'Mostrar' : 'Ocultar'}
+        </button>
+        {o.oculta && <span className="text-muted">Oculta do resumo</span>}
+      </div>
+    </li>
+  )
+}
+
 export function FormularioResumo() {
   const form = useForm()
-  const { dados: r, erro } = useApi<ResumoFormularioDTO>(`/formularios/${form.id}/resumo`, form)
+  const { dados: r, erro, recarregar } = useApi<ResumoFormularioDTO>(`/formularios/${form.id}/resumo`, form)
+  const [verOcultas, setVerOcultas] = useState(false)
   if (erro) return <p role="alert" className="text-[16px] text-diff-c">{erro}</p>
   if (!r) return <p role="status" className="text-[16px] text-muted">Carregando…</p>
   return (
@@ -384,18 +456,26 @@ export function FormularioResumo() {
         </div>
         <div className="w-full shrink-0 lg:w-[360px]">
           <Panel titulo="Observações dos alunos" subtitulo="Comentários recorrentes e sugestões enviadas pelos estudantes.">
-            {r.observacoes.length === 0 ? (
-              <p className="text-[16px] text-muted">Nenhuma observação enviada.</p>
-            ) : (
-              <ul className="flex flex-col gap-3">
-                {r.observacoes.map((o) => (
-                  <li key={o.texto} className="flex flex-col gap-1.5 rounded-lg border border-line bg-white p-3">
-                    <p className="text-[14px] text-ink">{`"${o.texto}"`}</p>
-                    <p className="text-[12px] text-muted">{`${o.alunos} ${o.alunos === 1 ? 'aluno' : 'alunos'}`}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
+            {(() => {
+              const ocultas = r.observacoes.filter((o) => o.oculta)
+              const visiveis = verOcultas ? r.observacoes : r.observacoes.filter((o) => !o.oculta)
+              if (r.observacoes.length === 0) return <p className="text-[16px] text-muted">Nenhuma observação enviada.</p>
+              return (
+                <div className="flex flex-col gap-3">
+                  {visiveis.length === 0 && <p className="text-[16px] text-muted">Todas as observações estão ocultas.</p>}
+                  <ul className="flex flex-col gap-3">
+                    {visiveis.map((o) => (
+                      <ObservacaoItem key={o.envioId} formularioId={form.id} o={o} aoMudar={recarregar} />
+                    ))}
+                  </ul>
+                  {ocultas.length > 0 && (
+                    <button type="button" onClick={() => setVerOcultas((v) => !v)} className="w-fit cursor-pointer text-[13px] text-muted underline">
+                      {verOcultas ? 'Esconder ocultas' : `Mostrar ocultas (${ocultas.length})`}
+                    </button>
+                  )}
+                </div>
+              )
+            })()}
           </Panel>
         </div>
       </div>

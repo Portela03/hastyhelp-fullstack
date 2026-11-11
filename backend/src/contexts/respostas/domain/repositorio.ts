@@ -3,10 +3,13 @@ import type { Envio } from './envio.ts'
 export interface EnvioRepositorio {
   /** Insere ou atualiza (único por formulário + aluno). */
   salvar(envio: Envio): Promise<void>
+  porId(id: string): Promise<Envio | undefined>
   porFormularioEAluno(formularioId: string, alunoId: string): Promise<Envio | undefined>
   listarPorFormulario(formularioId: string): Promise<Envio[]>
   listarPorFormularios(formularioIds: string[]): Promise<Envio[]>
   listarPorAluno(alunoId: string): Promise<Envio[]>
   excluirDoFormulario(formularioId: string): Promise<void>
   excluirDaTurma(turmaId: string): Promise<void>
+  /** R-18: apaga os envios de um aluno numa turma (ao removê-lo dela). */
+  excluirDoAlunoNaTurma(turmaId: string, alunoId: string): Promise<void>
 }

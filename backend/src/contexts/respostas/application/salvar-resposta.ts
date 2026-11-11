@@ -1,6 +1,7 @@
 import { ErroDeDominio, naoEncontrado } from '../../../shared/erros.ts'
 import type { Ator } from '../../../shared/ator.ts'
 import type { GeradorId, Relogio } from '../../../shared/portas.ts'
+import type { AvisoDePublicacao } from '../../autoavaliacoes/application/acesso.ts'
 import { aceitaRespostas } from '../../autoavaliacoes/domain/formulario.ts'
 import type { FormularioRepositorio } from '../../autoavaliacoes/domain/repositorio.ts'
 import type { TurmaRepositorio } from '../../turmas/domain/repositorio.ts'
@@ -12,7 +13,7 @@ import type { AutoavaliacaoDTO } from './dto.ts'
 
 /** Salva a marcação de uma pergunta na hora (rascunho do envio). */
 export class SalvarResposta {
-  constructor(private readonly d: { formularios: FormularioRepositorio; turmas: TurmaRepositorio; envios: EnvioRepositorio; ids: GeradorId; relogio: Relogio }) {}
+  constructor(private readonly d: { formularios: FormularioRepositorio; turmas: TurmaRepositorio; envios: EnvioRepositorio; ids: GeradorId; relogio: Relogio; publicacao?: AvisoDePublicacao }) {}
 
   async executar(ator: Ator, formularioId: string, perguntaId: string, marcadas: number[]): Promise<AutoavaliacaoDTO> {
     const formulario = await formularioDoAluno(this.d, ator, formularioId)

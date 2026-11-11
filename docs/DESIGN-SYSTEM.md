@@ -68,6 +68,15 @@ Sidebar fixa **220px** + coluna fluida; topbar **54px**; conteúdo com `gap-5`; 
 
 ## 3. Componentes
 
+### Componentes compartilhados fora de `ui.tsx`
+| Componente | Para quê | Onde |
+|---|---|---|
+| `Notificacoes` | sino da barra superior: contador de não lidas, lista, "marcar todas como lidas" (R-84) | `frontend/src/components/Notificacoes.tsx` (usado no `AppShell`) |
+| `PerguntaCard` | pergunta de autoavaliação: o aluno responde (com `onChange`) ou lê o resultado/gabarito; `name` único por cartão | `frontend/src/components/PerguntaCard.tsx` |
+| `PreviaAlunoModal` | professor vê o formulário como o aluno vê, sem salvar nada | `frontend/src/components/modals-alunos.tsx` |
+| `RespostasDoAlunoModal` | respostas individuais de um aluno (por equipe ou por formulário), com nota, nível e gabarito (N09) | `frontend/src/components/modals-alunos.tsx` |
+| `LinkDeRedefinicaoModal` | mostra o link de redefinição de senha gerado para um aluno (R-77) | `frontend/src/components/modals-alunos.tsx` |
+
 ### `frontend/src/components/ui.tsx`
 | Componente | Para quê | Props principais |
 |---|---|---|

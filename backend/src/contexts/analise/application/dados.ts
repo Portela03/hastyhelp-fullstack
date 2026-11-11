@@ -3,7 +3,8 @@ import { materializarTodos } from '../../autoavaliacoes/application/acesso.ts'
 import { visivelParaAluno } from '../../autoavaliacoes/domain/formulario.ts'
 import type { Formulario } from '../../autoavaliacoes/domain/formulario.ts'
 import type { FormularioRepositorio } from '../../autoavaliacoes/domain/repositorio.ts'
-import type { Notificador } from '../../identidade/application/portas.ts'
+import type { AvisoDePublicacao } from '../../autoavaliacoes/application/acesso.ts'
+import type { EmissorDeNotificacoes } from '../../notificacoes/application/emissor.ts'
 import type { Usuario, UsuarioRepositorio } from '../../identidade/domain/usuario.ts'
 import type { Envio } from '../../respostas/domain/envio.ts'
 import type { EnvioRepositorio } from '../../respostas/domain/repositorio.ts'
@@ -16,8 +17,9 @@ export interface DepsAnalise {
   turmas: TurmaRepositorio
   formularios: FormularioRepositorio
   envios: EnvioRepositorio
-  notificador: Notificador
+  emissor: EmissorDeNotificacoes
   relogio: Relogio
+  publicacao?: AvisoDePublicacao
 }
 
 export interface DadosDaTurma {
@@ -34,7 +36,7 @@ export interface DadosDaTurma {
 export async function carregarDadosDaTurma(d: DepsAnalise, turma: Turma): Promise<DadosDaTurma> {
   const [alunosIds, formularios] = await Promise.all([d.turmas.alunosIds(turma.id), d.formularios.listarPorTurmas([turma.id])])
   const alunos = (await d.usuarios.porIds(alunosIds)).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
-  const lista = (await materializarTodos(d.formularios, d.relogio, formularios)).sort((a, b) => a.criadoEm.getTime() - b.criadoEm.getTime())
+  const lista = (await materializarTodos(d, formularios)).sort((a, b) => a.criadoEm.getTime() - b.criadoEm.getTime())
   const publicados = lista.filter(visivelParaAluno)
   const todosEnvios = await d.envios.listarPorFormularios(lista.map((f) => f.id))
   const idsPublicados = new Set(publicados.map((f) => f.id))

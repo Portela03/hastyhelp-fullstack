@@ -24,7 +24,7 @@ await conectar(pool)
 const aplicadas = await migrar(pool)
 if (aplicadas.length) console.log(`Migrações aplicadas: ${aplicadas.join(', ')}`)
 
-const container = criarContainer(criarInfraPostgres(pool, { segredo: config.jwtSecret }))
+const container = criarContainer(criarInfraPostgres(pool, { segredo: config.jwtSecret, urlApp: config.urlApp }))
 if (config.semear && (await semear(container))) console.log('Dados de demonstração criados (senha: senha1234).')
 
-criarApp(container).listen(config.porta, () => console.log(`HastyHelp API em http://localhost:${config.porta}/api`))
+criarApp(container, { exporCaixaDeSaida: config.exporCaixaDeSaida }).listen(config.porta, () => console.log(`HastyHelp API em http://localhost:${config.porta}/api`))

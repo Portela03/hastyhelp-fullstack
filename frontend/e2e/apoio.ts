@@ -55,12 +55,15 @@ export interface Formulario {
 export const publicarFormulario = (prof: Usuario, turmaId: string, titulo = `Quiz ${unico()}`, extra: object = {}) =>
   chamar<Formulario>('POST', '/formularios', { titulo, turmaId, postar: true, perguntas: PERGUNTAS, ...extra }, prof.token)
 
+/** E-mails "enviados" ao endereço (caixa de saída de desenvolvimento da API). */
+export const caixaDeSaida = (para: string) => chamar<Array<{ assunto: string; link?: string }>>('GET', `/dev/caixa-de-saida?para=${encodeURIComponent(para)}`)
+
 /** Aluno responde tudo (certo = acerta tudo) e envia, direto pela API. */
-export async function responderEEnviar(aluno: Usuario, form: Formulario, certo = true) {
+export async function responderEEnviar(aluno: Usuario, form: Formulario, certo = true, observacao?: string) {
   const [p1, p2] = form.perguntas
   await chamar('PUT', `/aluno/autoavaliacoes/${form.id}/respostas/${p1!.id}`, { marcadas: certo ? [0] : [1] }, aluno.token)
   await chamar('PUT', `/aluno/autoavaliacoes/${form.id}/respostas/${p2!.id}`, { marcadas: [0, 2] }, aluno.token)
-  await chamar('POST', `/aluno/autoavaliacoes/${form.id}/enviar`, {}, aluno.token)
+  await chamar('POST', `/aluno/autoavaliacoes/${form.id}/enviar`, observacao ? { observacao } : {}, aluno.token)
 }
 
 /** Login pela interface (valida a tela de login de ponta a ponta). */

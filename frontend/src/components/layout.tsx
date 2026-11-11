@@ -5,9 +5,9 @@ import { useStore } from '../store'
 import blob1 from '../assets/figma/bg-blob-1.svg'
 import blob2 from '../assets/figma/bg-blob-2.svg'
 import chevron from '../assets/figma/chevron-down.svg'
-import notification from '../assets/figma/notification.svg'
 import { Avatar, Icon, cx } from './ui'
 import { PerfilModal } from './modals'
+import { Notificacoes } from './Notificacoes'
 
 const NAV_PROFESSOR = [
   { to: '/equipes', label: 'Equipes', icon: 'groups' },
@@ -173,9 +173,7 @@ export function AppShell({
             <BotaoVoltar para={voltar?.para} rotulo={voltar?.rotulo} />
           </div>
           <div className="flex items-center gap-4">
-            <button type="button" aria-label="Notificações" className="size-9 cursor-pointer">
-              <img src={notification} alt="" className="size-full" />
-            </button>
+            <Notificacoes />
             {action}
           </div>
         </header>

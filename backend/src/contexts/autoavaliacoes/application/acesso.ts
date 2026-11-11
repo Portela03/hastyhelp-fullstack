@@ -7,30 +7,40 @@ import { materializarAgendamento } from '../domain/formulario.ts'
 import type { Formulario } from '../domain/formulario.ts'
 import type { FormularioRepositorio } from '../domain/repositorio.ts'
 
-/** Lê o formulário aplicando R-26 (agendado vencido vira aberto) e persistindo a mudança. */
-export async function carregarFormulario(repo: FormularioRepositorio, relogio: Relogio, id: string): Promise<Formulario> {
-  const f = await repo.porId(id)
-  if (!f) throw naoEncontrado('FORMULARIO_NAO_ENCONTRADO', 'Formulário não encontrado.')
-  return materializar(repo, relogio, f)
+/** Chamado quando um formulário passa a `aberto` (R-81). */
+export interface AvisoDePublicacao {
+  executar(formulario: Formulario): Promise<void>
 }
 
-export async function materializar(repo: FormularioRepositorio, relogio: Relogio, f: Formulario): Promise<Formulario> {
-  const atual = materializarAgendamento(f, relogio.agora())
-  if (atual !== f) await repo.salvar(atual)
+export interface DepsLeitura {
+  formularios: FormularioRepositorio
+  relogio: Relogio
+  publicacao?: AvisoDePublicacao
+}
+
+/** Lê o formulário aplicando R-26 (agendado vencido vira aberto), persistindo e avisando os alunos. */
+export async function carregarFormulario(d: DepsLeitura, id: string): Promise<Formulario> {
+  const f = await d.formularios.porId(id)
+  if (!f) throw naoEncontrado('FORMULARIO_NAO_ENCONTRADO', 'Formulário não encontrado.')
+  return materializar(d, f)
+}
+
+export async function materializar(d: DepsLeitura, f: Formulario): Promise<Formulario> {
+  const atual = materializarAgendamento(f, d.relogio.agora())
+  if (atual !== f) {
+    await d.formularios.salvar(atual)
+    await d.publicacao?.executar(atual)
+  }
   return atual
 }
 
-export async function materializarTodos(repo: FormularioRepositorio, relogio: Relogio, lista: Formulario[]): Promise<Formulario[]> {
-  return Promise.all(lista.map((f) => materializar(repo, relogio, f)))
+export async function materializarTodos(d: DepsLeitura, lista: Formulario[]): Promise<Formulario[]> {
+  return Promise.all(lista.map((f) => materializar(d, f)))
 }
 
 /** Formulário + verificação de que a turma pertence ao professor. */
-export async function formularioDoDocente(
-  d: { formularios: FormularioRepositorio; turmas: TurmaRepositorio; relogio: Relogio },
-  ator: Ator,
-  formularioId: string,
-) {
-  const formulario = await carregarFormulario(d.formularios, d.relogio, formularioId)
+export async function formularioDoDocente(d: DepsLeitura & { turmas: TurmaRepositorio }, ator: Ator, formularioId: string) {
+  const formulario = await carregarFormulario(d, formularioId)
   const turma = await turmaDoDocente(d.turmas, ator, formulario.turmaId)
   return { formulario, turma }
 }

@@ -5,6 +5,7 @@ import { turmaDoDocente } from '../../turmas/application/acesso.ts'
 import type { TurmaRepositorio } from '../../turmas/domain/repositorio.ts'
 import { criarFormulario } from '../domain/formulario.ts'
 import type { FormularioRepositorio } from '../domain/repositorio.ts'
+import type { AvisoDePublicacao } from './acesso.ts'
 import { formularioDTO } from './dto.ts'
 import type { FormularioDTO, PerguntaEntrada } from './dto.ts'
 
@@ -19,7 +20,7 @@ export interface EntradaFormulario {
 }
 
 export class CriarFormulario {
-  constructor(private readonly d: { formularios: FormularioRepositorio; turmas: TurmaRepositorio; ids: GeradorId; relogio: Relogio }) {}
+  constructor(private readonly d: { formularios: FormularioRepositorio; turmas: TurmaRepositorio; ids: GeradorId; relogio: Relogio; publicacao?: AvisoDePublicacao }) {}
 
   async executar(ator: Ator, e: EntradaFormulario): Promise<FormularioDTO> {
     exigirPapel(ator, 'professor')
@@ -38,6 +39,7 @@ export class CriarFormulario {
       this.d.relogio.agora(),
     )
     await this.d.formularios.salvar(formulario)
+    if (formulario.status === 'aberto') await this.d.publicacao?.executar(formulario)
     return formularioDTO(formulario)
   }
 }

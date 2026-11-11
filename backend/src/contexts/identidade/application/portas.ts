@@ -8,14 +8,11 @@ export interface Hasher {
 export interface PayloadToken {
   sub: string
   papel: Papel
+  /** Id da sessão: revogar a sessão invalida o access token na hora. */
+  sid: string
 }
 
 export interface EmissorToken {
   emitir(payload: PayloadToken): string
   verificar(token: string): PayloadToken | null
-}
-
-export interface Notificador {
-  /** Avisa um aluno que há autoavaliação pendente (implementação real enviaria e-mail). */
-  notificarPendente(destino: { alunoId: string; nome: string; email: string }, formulario: { id: string; titulo: string }): Promise<void>
 }

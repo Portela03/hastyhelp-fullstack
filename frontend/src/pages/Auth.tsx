@@ -100,7 +100,7 @@ export function Login() {
           <Field label="Email" type="email" name="email" placeholder="Digite seu email" value={email} onChange={(e) => setEmail(e.target.value)} />
           <div className="flex flex-col gap-1">
             <PasswordField label="Senha" name="senha" placeholder="Digite sua senha" value={senha} onChange={setSenha} />
-            <button type="button" className="cursor-pointer text-center text-[16px] text-[#555]">
+            <button type="button" onClick={() => navigate('/esqueci-senha')} className="cursor-pointer text-center text-[16px] text-[#555]">
               Esqueceu a senha?
             </button>
           </div>
@@ -186,6 +186,109 @@ export function Cadastro({ convite }: { convite?: boolean }) {
         </div>
         <AuthButtons principal="Cadastrar" alternativa="Login" para="/login" desabilitado={enviando} />
       </form>
+    </AuthLayout>
+  )
+}
+
+export function EsqueciSenha() {
+  const navigate = useNavigate()
+  const [email, setEmail] = useState('')
+  const [enviado, setEnviado] = useState(false)
+  const [erro, setErro] = useState('')
+  const [enviando, setEnviando] = useState(false)
+
+  async function enviar(e: FormEvent) {
+    e.preventDefault()
+    setErro('')
+    setEnviando(true)
+    try {
+      await api('POST', '/auth/esqueci-senha', { email })
+      setEnviado(true)
+    } catch (e) {
+      setErro(mensagemDeErro(e))
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  return (
+    <AuthLayout titulo="Recuperar senha" voltarPara="/login">
+      {enviado ? (
+        <div className="flex w-full flex-col gap-6">
+          <p role="status" className="text-[16px] text-ink">
+            Se existir uma conta com esse e-mail, geramos um link para você escolher uma nova senha. Como o envio de e-mail ainda não está configurado, peça o link ao seu
+            professor (alunos) ou ao administrador do sistema (professores).
+          </p>
+          <ButtonBrown onClick={() => navigate('/login')}>Voltar ao login</ButtonBrown>
+        </div>
+      ) : (
+        <form onSubmit={enviar} className="flex w-full flex-col gap-8">
+          <div className="flex flex-col gap-2">
+            <p className="text-[16px] text-muted">Informe o e-mail da sua conta para gerar um link de redefinição de senha.</p>
+            <Field label="Email" type="email" name="email" placeholder="Digite seu email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            {erro && (
+              <p role="alert" className="text-[14px] text-diff-c">
+                {erro}
+              </p>
+            )}
+          </div>
+          <AuthButtons principal="Gerar link" alternativa="Cancelar" para="/login" desabilitado={enviando} />
+        </form>
+      )}
+    </AuthLayout>
+  )
+}
+
+export function RedefinirSenha() {
+  const navigate = useNavigate()
+  const { token } = useParams()
+  const [senha, setSenha] = useState('')
+  const [confirma, setConfirma] = useState('')
+  const [erro, setErro] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  const [concluido, setConcluido] = useState(false)
+
+  async function enviar(e: FormEvent) {
+    e.preventDefault()
+    if (senha.length < 8) return setErro('A senha deve ter pelo menos 8 caracteres.')
+    if (senha !== confirma) return setErro('As senhas não conferem.')
+    setErro('')
+    setEnviando(true)
+    try {
+      await api('POST', '/auth/redefinir-senha', { token, senha, confirmacaoSenha: confirma })
+      setConcluido(true)
+    } catch (e) {
+      setErro(mensagemDeErro(e))
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  return (
+    <AuthLayout titulo="Nova senha" voltarPara="/login">
+      {concluido ? (
+        <div className="flex w-full flex-col gap-6">
+          <p role="status" className="text-[16px] text-ink">
+            Senha alterada com sucesso. Entre com a nova senha.
+          </p>
+          <ButtonBrown onClick={() => navigate('/login')}>Ir para o login</ButtonBrown>
+        </div>
+      ) : (
+        <form onSubmit={enviar} className="flex w-full flex-col gap-8">
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1">
+              <PasswordField label="Nova senha" name="senha" placeholder="Digite uma senha forte" value={senha} onChange={setSenha} />
+              <PasswordField name="confirma" placeholder="Confirme sua nova senha" value={confirma} onChange={setConfirma} />
+            </div>
+            {erro && (
+              <p role="alert" className="text-[14px] text-diff-c">
+                {erro}
+              </p>
+            )}
+          </div>
+          <AuthButtons principal="Salvar senha" alternativa="Cancelar" para="/login" desabilitado={enviando} />
+        </form>
+      )}
     </AuthLayout>
   )
 }

@@ -66,6 +66,12 @@ const ESQ = {
     desde: z.string().optional(),
   }),
   resposta: z.object({ marcadas: z.array(z.number().int()) }),
+  refresh: z.object({ refreshToken: z.string().min(1) }),
+  esqueciSenha: z.object({ email: z.string().min(1) }),
+  redefinirSenha: z.object({ token: z.string().min(1), senha: z.string().min(1), confirmacaoSenha: z.string().optional() }),
+  moderacao: z
+    .object({ resposta: z.string().nullable().optional(), oculta: z.boolean().optional() })
+    .refine((m) => m.resposta !== undefined || m.oculta !== undefined, { message: 'Informe "resposta" e/ou "oculta".' }),
   envio: z.object({ observacao: z.string().optional() }).default({}),
 }
 
@@ -80,16 +86,17 @@ const rota = (fn: Handler): RequestHandler => (req, res, next) => {
 const atorDe = (res: Response) => res.locals.ator as Ator
 const param = (req: Request, nome: string) => String(req.params[nome] ?? '')
 
-export function criarApp({ uc, infra }: Container) {
+export function criarApp({ uc, infra }: Container, opcoes: { exporCaixaDeSaida?: boolean } = {}) {
   const app = express()
   app.use(cors())
   app.use(express.json({ limit: '1mb' }))
 
-  const autenticado: RequestHandler = (req, res, next) => {
+  // Confere o token e se a sessão ainda está ativa (logout/redefinição de senha invalidam na hora).
+  const autenticado: RequestHandler = async (req, res, next) => {
     const cabecalho = req.header('authorization') ?? ''
-    const payload = cabecalho.startsWith('Bearer ') ? infra.tokens.verificar(cabecalho.slice(7)) : null
-    if (!payload) return void res.status(401).json({ erro: { codigo: 'NAO_AUTENTICADO', mensagem: 'Faça login para continuar.' } })
-    res.locals.ator = { id: payload.sub, papel: payload.papel } satisfies Ator
+    const ator = cabecalho.startsWith('Bearer ') ? await uc.identidade.validarSessao.executar(cabecalho.slice(7)) : null
+    if (!ator) return void res.status(401).json({ erro: { codigo: 'NAO_AUTENTICADO', mensagem: 'Faça login para continuar.' } })
+    res.locals.ator = ator satisfies Ator
     next()
   }
   const apenas = (papel: Papel): RequestHandler => (_req, res, next) => {
@@ -109,6 +116,27 @@ export function criarApp({ uc, infra }: Container) {
   api.post('/auth/login', rota(async (req, res) => {
     res.json(await uc.identidade.autenticar.executar(limpar(ESQ.login.parse(req.body))))
   }))
+  api.post('/auth/refresh', rota(async (req, res) => {
+    res.json(await uc.identidade.renovarSessao.executar(ESQ.refresh.parse(req.body)))
+  }))
+  api.post('/auth/logout', rota(async (req, res) => {
+    await uc.identidade.encerrarSessao.executar(ESQ.refresh.parse(req.body))
+    res.status(204).end()
+  }))
+  api.post('/auth/esqueci-senha', rota(async (req, res) => {
+    await uc.identidade.esqueciSenha.executar(ESQ.esqueciSenha.parse(req.body))
+    res.status(202).json({ mensagem: 'Se existir uma conta com esse e-mail, um link de redefinição foi gerado.' })
+  }))
+  api.post('/auth/redefinir-senha', rota(async (req, res) => {
+    await uc.identidade.redefinirSenha.executar(limpar(ESQ.redefinirSenha.parse(req.body)))
+    res.status(204).end()
+  }))
+  if (opcoes.exporCaixaDeSaida) {
+    // Só desenvolvimento/testes: não há envio de e-mail, então é aqui que se lê o link de redefinição.
+    api.get('/dev/caixa-de-saida', rota(async (req, res) => {
+      res.json(await infra.caixaDeSaida.porDestinatario(String(req.query.para ?? '')))
+    }))
+  }
   api.get('/auth/convites/:codigo', rota(async (req, res) => {
     res.json(await uc.turmas.consultarConvite.executar(param(req, 'codigo')))
   }))
@@ -117,6 +145,17 @@ export function criarApp({ uc, infra }: Container) {
   }))
   api.patch('/perfil/preferencias', autenticado, rota(async (req, res) => {
     res.json(await uc.identidade.atualizarPreferencias.executar(atorDe(res).id, ESQ.preferencias.parse(req.body) as never))
+  }))
+
+  // --- notificações (sino) ---
+  api.get('/notificacoes', autenticado, rota(async (_req, res) => void res.json(await uc.notificacoes.listar.executar(atorDe(res)))))
+  api.post('/notificacoes/lidas', autenticado, rota(async (_req, res) => {
+    await uc.notificacoes.marcarTodasLidas.executar(atorDe(res))
+    res.status(204).end()
+  }))
+  api.post('/notificacoes/:id/lida', autenticado, rota(async (req, res) => {
+    await uc.notificacoes.marcarLida.executar(atorDe(res), param(req, 'id'))
+    res.status(204).end()
   }))
 
   // --- professor ---
@@ -140,6 +179,16 @@ export function criarApp({ uc, infra }: Container) {
     res.status(204).end()
   }))
   professor.get('/turmas/:id/alunos', rota(async (req, res) => void res.json(await uc.analise.alunosTurma.executar(atorDe(res), param(req, 'id')))))
+  professor.get('/turmas/:id/alunos/:alunoId/respostas', rota(async (req, res) => {
+    res.json(await uc.analise.alunoNaTurma.executar(atorDe(res), param(req, 'id'), param(req, 'alunoId')))
+  }))
+  professor.delete('/turmas/:id/alunos/:alunoId', rota(async (req, res) => {
+    await uc.turmas.removerAluno.executar(atorDe(res), param(req, 'id'), param(req, 'alunoId'))
+    res.status(204).end()
+  }))
+  professor.post('/turmas/:id/alunos/:alunoId/redefinir-senha', rota(async (req, res) => {
+    res.json(await uc.turmas.gerarLinkDeRedefinicao.executar(atorDe(res), param(req, 'id'), param(req, 'alunoId')))
+  }))
   professor.get('/turmas/:id/resumo', rota(async (req, res) => void res.json(await uc.analise.resumoTurma.executar(atorDe(res), param(req, 'id')))))
 
   professor.get('/formularios', rota(async (req, res) => {
@@ -158,6 +207,13 @@ export function criarApp({ uc, infra }: Container) {
   }))
   professor.get('/formularios/:id/alunos', rota(async (req, res) => void res.json(await uc.analise.alunosFormulario.executar(atorDe(res), param(req, 'id')))))
   professor.get('/formularios/:id/resumo', rota(async (req, res) => void res.json(await uc.analise.resumoFormulario.executar(atorDe(res), param(req, 'id')))))
+  professor.get('/formularios/:id/alunos/:alunoId', rota(async (req, res) => {
+    res.json(await uc.analise.alunoNoFormulario.executar(atorDe(res), param(req, 'id'), param(req, 'alunoId')))
+  }))
+  professor.patch('/formularios/:id/observacoes/:envioId', rota(async (req, res) => {
+    await uc.respostas.moderarObservacao.executar(atorDe(res), param(req, 'id'), param(req, 'envioId'), limpar(ESQ.moderacao.parse(req.body)))
+    res.status(204).end()
+  }))
   professor.post('/formularios/:id/notificar-pendentes', rota(async (req, res) => void res.json(await uc.analise.notificarPendentes.executar(atorDe(res), param(req, 'id')))))
   professor.get('/metricas', rota(async (req, res) => {
     res.json(await uc.analise.metricas.executar(atorDe(res), limpar(ESQ.filtroMetricas.parse(req.query))))

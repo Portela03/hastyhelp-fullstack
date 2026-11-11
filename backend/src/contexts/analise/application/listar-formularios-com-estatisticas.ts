@@ -22,7 +22,7 @@ export class ListarFormulariosComEstatisticas {
     const turmas = (await this.d.turmas.listarDoDocente(ator.id)).filter((t) => !filtro.turmaId || t.id === filtro.turmaId)
     const bruto = await this.d.formularios.listarPorTurmas(turmas.map((t) => t.id))
     const busca = filtro.busca?.trim().toLowerCase()
-    const formularios = (await materializarTodos(this.d.formularios, this.d.relogio, bruto))
+    const formularios = (await materializarTodos(this.d, bruto))
       .filter((f) => !filtro.status || f.status === filtro.status)
       .filter((f) => !busca || f.titulo.toLowerCase().includes(busca))
       .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())

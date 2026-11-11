@@ -19,6 +19,8 @@ export function autoavaliacaoDTO(f: Formulario, envio: Envio | undefined, agora:
     ...(envio?.nota !== undefined ? { nota: envio.nota } : {}),
     ...(envio?.compreensao ? { compreensao: envio.compreensao } : {}),
     mostrarGabarito: f.mostrarGabarito,
+    ...(envio?.observacao ? { observacao: envio.observacao } : {}),
+    ...(envio?.respostaProfessor ? { respostaProfessor: envio.respostaProfessor } : {}),
     perguntas: f.perguntas.map((p) => ({
       id: p.id,
       enunciado: p.enunciado,

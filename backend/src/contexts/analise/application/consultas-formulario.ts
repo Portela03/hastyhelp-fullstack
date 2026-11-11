@@ -22,15 +22,19 @@ export class ResumoDoFormulario {
     const dificuldades = dificuldadesGerais(formulario.perguntas, enviados.map((e) => e.respostas))
     const topo = dificuldades[0]
     const indice = topo ? formulario.perguntas.findIndex((p) => p.enunciado === topo.titulo) : -1
-    const agrupadas = new Map<string, number>()
-    for (const e of enviados) if (e.observacao) agrupadas.set(e.observacao, (agrupadas.get(e.observacao) ?? 0) + 1)
+    const nomes = new Map(alunos.map((a) => [a.id, a.nome]))
+    const observacoes = enviados.flatMap((e) =>
+      e.observacao
+        ? [{ envioId: e.id, alunoId: e.alunoId, aluno: nomes.get(e.alunoId) ?? '', texto: e.observacao, resposta: e.respostaProfessor ?? null, oculta: e.observacaoOculta ?? false }]
+        : [],
+    )
     return {
       respondidos: enviados.length,
       total: alunos.length,
       taxaResposta: taxaDeResposta(enviados.length, alunos.length),
       notaMedia: arredondar1(media(notasDe(enviados))),
-      totalObservacoes: [...agrupadas.values()].reduce((a, b) => a + b, 0),
-      observacoes: [...agrupadas].map(([texto, qtd]) => ({ texto, alunos: qtd })).sort((a, b) => b.alunos - a.alunos),
+      totalObservacoes: observacoes.filter((o) => !o.oculta).length,
+      observacoes: observacoes.sort((a, b) => a.aluno.localeCompare(b.aluno, 'pt-BR')),
       distribuicao: distribuicao(niveisDe(enviados)),
       maiorDificuldade: maiorDificuldade(niveisDe(enviados)),
       dificuldadesGerais: dificuldades,
@@ -68,7 +72,10 @@ export class NotificarPendentes {
     if (formulario.status !== 'aberto') throw new ErroDeDominio('FORMULARIO_NAO_ABERTO', 'Só é possível notificar alunos de um formulário aberto.')
     const jaEnviaram = new Set(enviados.map((e) => e.alunoId))
     const pendentes = alunos.filter((a) => !jaEnviaram.has(a.id))
-    for (const a of pendentes) await this.d.notificador.notificarPendente({ alunoId: a.id, nome: a.nome, email: a.email }, { id: formulario.id, titulo: formulario.titulo })
-    return { notificados: pendentes.length }
+    const notificados = await this.d.emissor.emitir(
+      pendentes.map((a) => a.id),
+      { tipo: 'lembrete', titulo: `Autoavaliação pendente: ${formulario.titulo}`, mensagem: 'Você ainda não enviou esta autoavaliação.', link: `/aluno/autoavaliacoes/${formulario.id}` },
+    )
+    return { notificados }
   }
 }

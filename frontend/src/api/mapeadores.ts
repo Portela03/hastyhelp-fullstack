@@ -69,6 +69,8 @@ export interface AutoavaliacaoDTO {
   nota?: number
   compreensao?: Dificuldade
   mostrarGabarito: boolean
+  observacao?: string
+  respostaProfessor?: string
   perguntas: PerguntaDTO[]
   respostas: Record<string, number[]>
 }
@@ -129,6 +131,8 @@ export const paraAutoavaliacao = (a: AutoavaliacaoDTO): AutoavaliacaoAluno => ({
   ...(a.enviadoEm ? { enviadoEm: formatarData(a.enviadoEm) } : {}),
   ...(a.nota !== undefined ? { nota: a.nota } : {}),
   ...(a.compreensao ? { compreensao: a.compreensao } : {}),
+  ...(a.observacao ? { observacao: a.observacao } : {}),
+  ...(a.respostaProfessor ? { respostaProfessor: a.respostaProfessor } : {}),
 })
 
 /** Perguntas novas (criadas na tela) não têm id do servidor: a API gera. */

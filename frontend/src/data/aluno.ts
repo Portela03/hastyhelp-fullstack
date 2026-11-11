@@ -7,6 +7,7 @@ export interface Sessao {
   nome: string
   email: string
   token: string
+  refreshToken: string
 }
 
 /** Status da autoavaliação do ponto de vista do aluno. */
@@ -31,6 +32,9 @@ export interface AutoavaliacaoAluno {
   compreensao?: Dificuldade
   /** O professor decide se o gabarito aparece para o aluno. */
   mostrarGabarito: boolean
+  /** Observação que o aluno enviou e a resposta do professor (R-95). */
+  observacao?: string
+  respostaProfessor?: string
   perguntas: Pergunta[]
   respostas: Record<string, number[]>
 }

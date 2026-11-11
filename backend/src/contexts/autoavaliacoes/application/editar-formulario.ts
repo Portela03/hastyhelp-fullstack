@@ -6,6 +6,7 @@ import { alterarStatus, atualizarFormulario } from '../domain/formulario.ts'
 import type { StatusFormulario } from '../domain/formulario.ts'
 import type { FormularioRepositorio } from '../domain/repositorio.ts'
 import { formularioDoDocente } from './acesso.ts'
+import type { AvisoDePublicacao } from './acesso.ts'
 import { formularioDTO } from './dto.ts'
 import type { FormularioDTO, PerguntaEntrada } from './dto.ts'
 
@@ -19,7 +20,7 @@ export interface EdicaoEntrada {
 }
 
 export class EditarFormulario {
-  constructor(private readonly d: { formularios: FormularioRepositorio; turmas: TurmaRepositorio; ids: GeradorId; relogio: Relogio }) {}
+  constructor(private readonly d: { formularios: FormularioRepositorio; turmas: TurmaRepositorio; ids: GeradorId; relogio: Relogio; publicacao?: AvisoDePublicacao }) {}
 
   async executar(ator: Ator, formularioId: string, e: EdicaoEntrada): Promise<FormularioDTO> {
     const { formulario } = await formularioDoDocente(this.d, ator, formularioId)
@@ -36,6 +37,7 @@ export class EditarFormulario {
     )
     if (e.status) atual = alterarStatus(atual, e.status, agora, e.publicarEm ? lerData(e.publicarEm, 'publicarEm') : undefined)
     await this.d.formularios.salvar(atual)
+    if (formulario.status !== 'aberto' && atual.status === 'aberto') await this.d.publicacao?.executar(atual)
     return formularioDTO(atual)
   }
 }

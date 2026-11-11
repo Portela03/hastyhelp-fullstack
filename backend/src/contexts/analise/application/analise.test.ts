@@ -28,10 +28,10 @@ describe('análise do formulário', () => {
       taxaResposta: 50,
       notaMedia: 7.5,
       totalObservacoes: 2,
-      observacoes: [{ texto: 'Mais exemplos reais', alunos: 2 }],
       distribuicao: { I: 50, P: 0, C: 50 },
       maiorDificuldade: 'C',
     })
+    expect(r.observacoes.map((o) => [o.aluno, o.texto]).sort()).toEqual([['James Park', 'Mais exemplos reais'], ['Sarah Chen', 'Mais exemplos reais']])
     expect(r.dificuldadesGerais).toEqual([{ titulo: 'Qual a média de 2 e 4?', total: 1 }])
     expect(r.maiorDificuldadePergunta).toMatchObject({ numero: 1, enunciado: 'Qual a média de 2 e 4?' })
   })
@@ -49,10 +49,11 @@ describe('análise do formulário', () => {
     await expect(ctx.uc.analise.alunosFormulario.executar(outro, formulario.id)).rejects.toMatchObject({ status: 403 })
   })
   it('R-58 notifica os alunos que ainda não enviaram', async () => {
-    const { ctx, prof, formulario } = await cenarioComRespostas()
+    const { ctx, prof, formulario, alunos } = await cenarioComRespostas()
     const r = await ctx.uc.analise.notificarPendentes.executar(prof, formulario.id)
     expect(r).toEqual({ notificados: 2 })
-    expect(ctx.infra.notificador.enviadas.map((n) => n.nome).sort()).toEqual(['Lisa Anderson', 'Michael Torres'])
+    const lembretes = await Promise.all([alunos[2]!, alunos[3]!].map((a) => ctx.uc.notificacoes.listar.executar(a)))
+    expect(lembretes.map((l) => l.itens.some((n) => n.tipo === 'lembrete'))).toEqual([true, true])
   })
 })
 

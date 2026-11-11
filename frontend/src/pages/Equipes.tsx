@@ -6,7 +6,9 @@ import dotP from '../assets/figma/dot-p.svg'
 import sortIcon from '../assets/figma/sort.svg'
 import { AppShell, Banner, BannerStat, DataTable, Section, TabBar, Toolbar } from '../components/layout'
 import { CriarEquipeModal, EditarEquipeModal, EditarFormularioModal } from '../components/modals'
+import { LinkDeRedefinicaoModal, RespostasDoAlunoModal } from '../components/modals-alunos'
 import { Avatar, ButtonPrimary, DifficultyLetter, FilterSelect, KpiCard, Panel, ProgressBar, SearchBox, StatusPill, SortButton, TeamBadge, cx, OptionsMenu } from '../components/ui'
+import { api } from '../api/client'
 import { useApi } from '../api/use-api'
 import { PERIODOS } from '../data/tipos'
 import type { Dificuldade, Equipe, Formulario } from '../data/tipos'
@@ -481,12 +483,31 @@ function LinkDeConvite({ codigo }: { codigo: string }) {
 
 export function EquipeAlunos() {
   const equipe = useEquipe()
-  const { dados, erro } = useApi<AlunosTurmaDTO>(`/turmas/${equipe.id}/alunos`, equipe)
+  const { executar, recarregar } = useStore()
+  const { dados, erro, recarregar: recarregarAlunos } = useApi<AlunosTurmaDTO>(`/turmas/${equipe.id}/alunos`, equipe)
+  const [respostasDe, setRespostasDe] = useState<{ id: string; nome: string } | null>(null)
+  const [linkDe, setLinkDe] = useState<{ nome: string; link: string } | null>(null)
   if (erro) return <p role="alert" className="text-[16px] text-diff-c">{erro}</p>
   const docentes = dados?.docentes ?? []
   const alunos = dados?.alunos ?? []
+
+  const gerarLink = (aluno: { id: string; nome: string }) =>
+    executar(async () => {
+      const r = await api<{ link: string }>('POST', `/turmas/${equipe.id}/alunos/${aluno.id}/redefinir-senha`)
+      setLinkDe({ nome: aluno.nome, link: r.link })
+    })
+  const remover = (aluno: { id: string; nome: string }) => {
+    if (!window.confirm(`Remover ${aluno.nome} da equipe? As respostas dele(a) nesta equipe serão apagadas.`)) return
+    void executar(async () => {
+      await api('DELETE', `/turmas/${equipe.id}/alunos/${aluno.id}`)
+      await Promise.all([recarregarAlunos(), recarregar()])
+    })
+  }
+
   return (
     <div className="flex flex-col gap-4">
+      {respostasDe && <RespostasDoAlunoModal nome={respostasDe.nome} caminho={`/turmas/${equipe.id}/alunos/${respostasDe.id}/respostas`} onClose={() => setRespostasDe(null)} />}
+      {linkDe && <LinkDeRedefinicaoModal nome={linkDe.nome} link={linkDe.link} onClose={() => setLinkDe(null)} />}
       {equipe.codigoConvite && (
         <AlunosSecao titulo="Convidar alunos">
           <LinkDeConvite codigo={equipe.codigoConvite} />
@@ -505,11 +526,21 @@ export function EquipeAlunos() {
               { titulo: 'Aluno' },
               { titulo: 'Domínio médio', largura: '200px', centro: true },
               { titulo: 'Formulários enviados', largura: '200px', centro: true },
+              { titulo: 'Ação', largura: '120px', centro: true },
             ]}
             linhas={alunos.map((a, i) => [
               <Iniciais key="n" nome={a.nome} cor={CORES_AVATAR[i % CORES_AVATAR.length] ?? '#a67b5b'} iniciais={iniciaisDe(a.nome)} />,
               <strong key="d">{a.dominio === null ? '—' : `${a.dominio}%`}</strong>,
               a.enviados,
+              <OptionsMenu
+                key="m"
+                label={`Ações de ${a.nome}`}
+                items={[
+                  { label: 'Ver respostas', icon: 'visibility', onClick: () => setRespostasDe(a) },
+                  { label: 'Gerar link de redefinição de senha', icon: 'key', onClick: () => void gerarLink(a) },
+                  { label: 'Remover da equipe', icon: 'person_remove', destructive: true, onClick: () => remover(a) },
+                ]}
+              />,
             ])}
           />
         )}

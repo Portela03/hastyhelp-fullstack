@@ -10,5 +10,7 @@ export interface TurmaRepositorio {
   excluir(id: string): Promise<void>
   /** Idempotente (R-16). */
   matricular(turmaId: string, alunoId: string): Promise<void>
+  /** R-18 */
+  desmatricular(turmaId: string, alunoId: string): Promise<void>
   alunosIds(turmaId: string): Promise<string[]>
 }

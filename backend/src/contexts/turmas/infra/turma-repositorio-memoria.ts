@@ -29,6 +29,9 @@ export class TurmaRepositorioMemoria implements TurmaRepositorio {
     conjunto.add(alunoId)
     this.matriculas.set(turmaId, conjunto)
   }
+  async desmatricular(turmaId: string, alunoId: string) {
+    this.matriculas.get(turmaId)?.delete(alunoId)
+  }
   async alunosIds(turmaId: string) {
     return [...(this.matriculas.get(turmaId) ?? [])]
   }
