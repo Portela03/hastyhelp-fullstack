@@ -1,0 +1,68 @@
+import { describe, expect, it } from 'vitest'
+import { cenarioPublicado, criarContexto } from '../../../app/testes/contexto.ts'
+
+describe('turmas', () => {
+  it('R-10/R-11/R-12 cria turma com sigla, cor e código de convite', async () => {
+    const ctx = criarContexto()
+    const prof = await ctx.usuario('professor', 'Alberto')
+    const turma = await ctx.uc.turmas.criar.executar(prof, { nome: 'Banco de Dados Relacional', periodo: '2026/01' })
+    expect(turma).toMatchObject({ nome: 'Banco de Dados Relacional', sigla: 'BDR', periodo: '2026/01', docente: 'Alberto', oculta: false })
+    expect(turma.codigoConvite).toHaveLength(8)
+    const outra = await ctx.uc.turmas.criar.executar(prof, { nome: 'Outra', periodo: '2026/01' })
+    expect(outra.codigoConvite).not.toBe(turma.codigoConvite)
+  })
+  it('R-10 só professor cria turma', async () => {
+    const ctx = criarContexto()
+    const aluno = await ctx.usuario('aluno', 'Sarah Chen')
+    await expect(ctx.uc.turmas.criar.executar(aluno, { nome: 'X', periodo: '2026/01' })).rejects.toMatchObject({ status: 403 })
+  })
+  it('R-13 só o dono edita, oculta e exclui', async () => {
+    const ctx = criarContexto()
+    const dono = await ctx.usuario('professor', 'Alberto')
+    const outro = await ctx.usuario('professor', 'Maria Silva')
+    const turma = await ctx.uc.turmas.criar.executar(dono, { nome: 'Banco de Dados', periodo: '2026/01' })
+    await expect(ctx.uc.turmas.editar.executar(outro, turma.id, { nome: 'Invadida' })).rejects.toMatchObject({ codigo: 'ACESSO_NEGADO', status: 403 })
+    await expect(ctx.uc.turmas.excluir.executar(outro, turma.id)).rejects.toMatchObject({ status: 403 })
+    expect(await ctx.uc.turmas.listar.executar(outro)).toEqual([])
+  })
+  it('R-14 oculta e desoculta sem perder dados', async () => {
+    const ctx = criarContexto()
+    const prof = await ctx.usuario('professor', 'Alberto')
+    const turma = await ctx.uc.turmas.criar.executar(prof, { nome: 'Banco de Dados', periodo: '2026/01' })
+    await ctx.uc.turmas.editar.executar(prof, turma.id, { oculta: true })
+    expect((await ctx.uc.turmas.listar.executar(prof))[0]).toMatchObject({ oculta: true, nome: 'Banco de Dados' })
+    await ctx.uc.turmas.editar.executar(prof, turma.id, { oculta: false })
+    expect((await ctx.uc.turmas.listar.executar(prof))[0]?.oculta).toBe(false)
+  })
+  it('R-10 edição valida os dados', async () => {
+    const ctx = criarContexto()
+    const prof = await ctx.usuario('professor', 'Alberto')
+    const turma = await ctx.uc.turmas.criar.executar(prof, { nome: 'Banco de Dados', periodo: '2026/01' })
+    await expect(ctx.uc.turmas.editar.executar(prof, turma.id, { periodo: 'abc' })).rejects.toMatchObject({ codigo: 'PERIODO_INVALIDO' })
+  })
+  it('R-15 excluir remove formulários, envios e matrículas', async () => {
+    const ctx = criarContexto()
+    const { prof, turma, alunos, formulario } = await cenarioPublicado(ctx)
+    await ctx.uc.respostas.salvar.executar(alunos[0]!, formulario.id, formulario.perguntas[0]!.id, [0])
+    await ctx.uc.turmas.excluir.executar(prof, turma.id)
+    expect(await ctx.uc.turmas.listar.executar(prof)).toEqual([])
+    expect(await ctx.uc.turmas.listar.executar(alunos[0]!)).toEqual([])
+    expect(await ctx.infra.formularios.porId(formulario.id)).toBeUndefined()
+    expect(await ctx.infra.envios.listarPorFormulario(formulario.id)).toEqual([])
+  })
+  it('R-16 matricular duas vezes é idempotente', async () => {
+    const ctx = criarContexto()
+    const prof = await ctx.usuario('professor', 'Alberto')
+    const turma = await ctx.uc.turmas.criar.executar(prof, { nome: 'Banco de Dados', periodo: '2026/01' })
+    const aluno = await ctx.usuario('aluno', 'Sarah Chen', { codigoConvite: turma.codigoConvite })
+    await ctx.infra.turmas.matricular(turma.id, aluno.id)
+    expect(await ctx.infra.turmas.alunosIds(turma.id)).toEqual([aluno.id])
+  })
+  it('R-17 consulta de convite é pública; código inválido é 404', async () => {
+    const ctx = criarContexto()
+    const prof = await ctx.usuario('professor', 'Alberto')
+    const turma = await ctx.uc.turmas.criar.executar(prof, { nome: 'Banco de Dados', periodo: '2026/01' })
+    expect(await ctx.uc.turmas.consultarConvite.executar(turma.codigoConvite)).toEqual({ nome: 'Banco de Dados', periodo: '2026/01' })
+    await expect(ctx.uc.turmas.consultarConvite.executar('xxxx')).rejects.toMatchObject({ status: 404 })
+  })
+})
