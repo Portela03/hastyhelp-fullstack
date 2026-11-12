@@ -5,6 +5,8 @@ import { DifficultyLetter, FilterSelect, KpiCard } from '../components/ui'
 import { PERIODOS } from '../data/tipos'
 import type { Dificuldade, StatusFormulario } from '../data/tipos'
 import { useStore } from '../store'
+import { calcularResumoSatisfacao, formatarDataPesquisa, interpretarNps } from '../data/satisfacao'
+import type { Papel } from '../data/aluno'
 
 interface MetricasDTO {
   desempenhoMedio: number | null
@@ -34,13 +36,14 @@ function desdeDe(opcao: string): string | undefined {
 }
 
 export function Metricas() {
-  const { equipes, formularios } = useStore()
+  const { equipes, formularios, pesquisas } = useStore()
   const [periodo, setPeriodo] = useState('')
   const [turma, setTurma] = useState('')
   const [aluno, setAluno] = useState('')
   const [formulario, setFormulario] = useState('')
   const [status, setStatus] = useState('')
   const [data, setData] = useState('')
+  const [filtroPublicoPesquisa, setFiltroPublicoPesquisa] = useState<string>('')
 
   const turmas = [...new Set(equipes.map((e) => e.nome))]
   const turmaSelecionada = equipes.find((e) => e.nome === turma)
@@ -184,6 +187,136 @@ export function Metricas() {
           </>
         )}
       </section>
+
+      {/* Painel Satisfação com o HastyHelp */}
+      {(() => {
+        const pesquisasFiltradas = pesquisas.filter((p) => {
+          if (!filtroPublicoPesquisa) return true
+          return p.perfil === (filtroPublicoPesquisa.toLowerCase() as Papel)
+        })
+        const resumo = calcularResumoSatisfacao(pesquisasFiltradas)
+        const comentarios = pesquisasFiltradas
+          .filter((p) => p.comentario && p.comentario.trim().length > 0)
+          .slice(0, 5)
+
+        return (
+          <section className="flex flex-col gap-[18px] rounded-xl border border-line bg-white p-5">
+            <header className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-col gap-[3px]">
+                <h2 className="text-[22px] font-bold text-ink">Satisfação com o HastyHelp</h2>
+                <p className="text-[13px] text-muted">Pesquisa anônima de NPS e CSAT respondida por alunos e professores</p>
+              </div>
+              <FilterSelect
+                label="Público"
+                all="Todos"
+                value={filtroPublicoPesquisa}
+                onChange={setFiltroPublicoPesquisa}
+                options={['Aluno', 'Professor']}
+              />
+            </header>
+
+            <div className="flex flex-wrap gap-3.5">
+              <KpiCard
+                className="min-w-[200px] gap-1"
+                titulo="NPS"
+                valor={resumo.total === 0 ? '—' : resumo.npsScore}
+                detalhe={resumo.total === 0 ? 'Sem respostas' : interpretarNps(resumo.npsScore)}
+              />
+              <KpiCard
+                className="min-w-[200px] gap-1"
+                titulo="CSAT médio"
+                valor={resumo.total === 0 ? '—' : `${resumo.csatMedio.toLocaleString('pt-BR')}/5`}
+                detalhe={`${resumo.percentualSatisfeitos}% satisfeitos (nota 4 ou 5)`}
+              />
+              <KpiCard
+                className="min-w-[200px] gap-1"
+                titulo="Respostas"
+                valor={resumo.total}
+                detalhe="Todas as coletas do período"
+              />
+            </div>
+
+            <div className="flex flex-col gap-[18px] lg:flex-row">
+              {/* Quem recomenda */}
+              <section className="flex min-w-0 flex-1 flex-col gap-3.5 rounded-xl border border-line bg-panel p-[18px]">
+                <header className="flex flex-col gap-[3px]">
+                  <h3 className="text-[18px] font-bold text-ink">Quem recomenda</h3>
+                  <p className="text-[13px] text-muted">Promotores (9-10), neutros (7-8) e detratores (0-6)</p>
+                </header>
+                {resumo.total === 0 ? (
+                  <p className="text-[13px] text-muted">Nenhuma resposta registrada.</p>
+                ) : (
+                  <div className="flex flex-col gap-4">
+                    <div
+                      role="img"
+                      aria-label={`Distribuição de recomendação: ${resumo.percentualPromotores}% promotores, ${resumo.percentualNeutros}% neutros, ${resumo.percentualDetratores}% detratores`}
+                      className="flex h-3.5 w-full overflow-hidden rounded-full bg-track"
+                    >
+                      <div
+                        style={{ width: `${resumo.percentualPromotores}%` }}
+                        className="h-full bg-ok transition-all"
+                        title={`Promotores: ${resumo.percentualPromotores}%`}
+                      />
+                      <div
+                        style={{ width: `${resumo.percentualNeutros}%` }}
+                        className="h-full bg-[#8fcbc5] transition-all"
+                        title={`Neutros: ${resumo.percentualNeutros}%`}
+                      />
+                      <div
+                        style={{ width: `${resumo.percentualDetratores}%` }}
+                        className="h-full bg-diff-c transition-all"
+                        title={`Detratores: ${resumo.percentualDetratores}%`}
+                      />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-4 text-[13px] text-ink">
+                      <span className="font-semibold text-ok">
+                        {resumo.percentualPromotores}% <span className="font-normal text-muted">promotores</span>
+                      </span>
+                      <span className="font-semibold text-[#2f5b7a]">
+                        {resumo.percentualNeutros}% <span className="font-normal text-muted">neutros</span>
+                      </span>
+                      <span className="font-semibold text-diff-c">
+                        {resumo.percentualDetratores}% <span className="font-normal text-muted">detratores</span>
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              {/* Comentários recentes */}
+              <section className="flex w-full shrink-0 flex-col gap-3.5 rounded-xl border border-line bg-panel p-[18px] lg:w-[460px]">
+                <header className="flex flex-col gap-[3px]">
+                  <h3 className="text-[18px] font-bold text-ink">Comentários recentes</h3>
+                  <p className="text-[13px] text-muted">Sem identificação de quem escreveu</p>
+                </header>
+                {comentarios.length === 0 ? (
+                  <p className="text-[13px] text-muted">Ainda não há comentários registrados.</p>
+                ) : (
+                  <ul className="flex flex-col gap-3">
+                    {comentarios.map((p) => {
+                      const gatilhoRotulo =
+                        p.gatilho === 'pos-envio'
+                          ? 'Após enviar autoavaliação'
+                          : p.gatilho === 'trimestral'
+                            ? 'Pesquisa trimestral'
+                            : 'Botão "Avaliar o HastyHelp"'
+                      const perfilRotulo = p.perfil === 'professor' ? 'Professor' : 'Aluno'
+                      return (
+                        <li key={p.id} className="flex flex-col gap-1 border-b border-line pb-3 last:border-b-0 last:pb-0">
+                          <p className="text-[14px] text-ink font-medium leading-snug">"{p.comentario}"</p>
+                          <span className="text-[12px] text-muted">
+                            {`${perfilRotulo} · ${formatarDataPesquisa(p.data)} · ${gatilhoRotulo} · CSAT ${p.csat} · NPS ${p.nps}`}
+                          </span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </section>
+            </div>
+          </section>
+        )
+      })()}
     </AppShell>
   )
 }

@@ -17,6 +17,7 @@ import { DesignSystem } from './pages/DesignSystem'
 import { EquipeAlunos, EquipeDetalhe, EquipeFormularios, EquipeResumo, Equipes } from './pages/Equipes'
 import { FormularioAlunos, FormularioDetalhe, FormularioPerguntas, FormularioResumo, Formularios } from './pages/Formularios'
 import { Metricas } from './pages/Metricas'
+import { Faq } from './pages/Faq'
 
 const inicioDo = (papel: Papel) => (papel === 'aluno' ? '/aluno/turmas' : '/equipes')
 
@@ -77,6 +78,7 @@ function App() {
         </Route>
 
         <Route path="/metricas" element={<Metricas />} />
+        <Route path="/faq" element={<Faq />} />
       </Route>
 
       <Route element={<Protegida papel="aluno" />}>
@@ -93,6 +95,7 @@ function App() {
         </Route>
 
         <Route path="/aluno/desempenho" element={<AlunoDesempenho />} />
+        <Route path="/aluno/faq" element={<Faq />} />
       </Route>
 
       <Route path="*" element={<Inicio />} />

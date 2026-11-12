@@ -8,6 +8,8 @@ import chevron from '../assets/figma/chevron-down.svg'
 import { Avatar, Icon, cx } from './ui'
 import { PerfilModal } from './modals'
 import { Notificacoes } from './Notificacoes'
+import { PesquisaSatisfacaoModal } from './PesquisaSatisfacao'
+import { isPesquisaTrimestralPendente } from '../data/satisfacao'
 
 const NAV_PROFESSOR = [
   { to: '/equipes', label: 'Equipes', icon: 'groups' },
@@ -64,6 +66,25 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </nav>
 
         <div className="flex flex-col gap-3">
+          <NavLink
+            to={aluno ? '/aluno/faq' : '/faq'}
+            onClick={onNavigate}
+            className={({ isActive }) =>
+              cx(
+                'flex h-[44px] items-center gap-2.5 rounded-xl px-3 py-2 text-[16px] whitespace-nowrap text-white',
+                'transition duration-100',
+                isActive
+                  ? 'bg-sidebar-active font-semibold'
+                  : 'hover:bg-sidebar-hover font-medium',
+              )
+            }
+          >
+            <span className="flex size-7 items-center justify-center">
+              <Icon name="help_outline" round={false} className="text-[22px]" />
+            </span>
+            FAQ / Ajuda
+          </NavLink>
+
           <div className="sidebar-divider h-px bg-sidebar-active" />
 
           <button
@@ -146,6 +167,12 @@ export function AppShell({
   voltar?: { para: string; rotulo: string }
 }) {
   const [aberto, setAberto] = useState(false)
+  const [pesquisaAberta, setPesquisaAberta] = useState(false)
+  const { sessao, pesquisas } = useStore()
+
+  const perfil = sessao?.papel ?? 'aluno'
+  const pesquisasPerfil = pesquisas.filter((p) => p.perfil === perfil)
+  const trimestralPendente = isPesquisaTrimestralPendente(pesquisasPerfil)
   return (
     <div className="flex min-h-screen bg-page">
       <div className="sticky top-0 hidden h-screen lg:block">
@@ -173,12 +200,33 @@ export function AppShell({
             <BotaoVoltar para={voltar?.para} rotulo={voltar?.rotulo} />
           </div>
           <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setPesquisaAberta(true)}
+              className="relative flex cursor-pointer items-center gap-1.5 rounded-lg border border-line-input bg-white px-3 py-1.5 text-[14px] font-medium text-ink transition hover:border-ink hover:bg-page"
+              title="Deixe sua opinião anônima sobre o HastyHelp"
+            >
+              <Icon name="rate_review" className="text-[18px] text-muted" />
+              <span>Avaliar o HastyHelp</span>
+              {trimestralPendente && (
+                <span
+                  title="Pesquisa trimestral pendente"
+                  className="absolute -right-1 -top-1 size-2.5 rounded-full bg-diff-c ring-2 ring-topbar"
+                />
+              )}
+            </button>
             <Notificacoes />
             {action}
           </div>
         </header>
         <main className="flex flex-col gap-5 px-4 sm:px-10">{children}</main>
       </div>
+      {pesquisaAberta && (
+        <PesquisaSatisfacaoModal
+          onClose={() => setPesquisaAberta(false)}
+          gatilho="continua"
+        />
+      )}
     </div>
   )
 }

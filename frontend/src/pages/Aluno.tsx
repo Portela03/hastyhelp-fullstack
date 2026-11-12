@@ -28,6 +28,7 @@ import {
 } from '../data/aluno'
 import type { AutoavaliacaoAluno } from '../data/aluno'
 import { PERIODOS } from '../data/tipos'
+import { CartaoPosEnvioSatisfacao, PesquisaSatisfacaoModal } from '../components/PesquisaSatisfacao'
 import type { Dificuldade, Equipe } from '../data/tipos'
 import { useStore } from '../store'
 
@@ -535,6 +536,7 @@ function Responder({ a }: { a: AutoavaliacaoAluno }) {
 export function AlunoResultado() {
   const a = useOutletContext<AutoavaliacaoAluno>()
   const { autoavaliacoes } = useStore()
+  const [pesquisaAberta, setPesquisaAberta] = useState(false)
   if (a.status !== 'respondido') return <Navigate to={`/aluno/autoavaliacoes/${a.id}`} replace />
   const daTurma = estatisticas(autoavaliacoes.filter((x) => x.turmaId === a.turmaId)).evolucao
   const idx = daTurma.findIndex((x) => x.id === a.id)
@@ -543,7 +545,15 @@ export function AlunoResultado() {
   const acertos = a.perguntas.filter((p) => p.gabarito && acertou(p, a.respostas)).length
   const comGabarito = a.perguntas.filter((p) => p.gabarito).length
   return (
-    <section className="flex flex-col gap-4 rounded-xl border border-line bg-white p-[22px]">
+    <>
+      <CartaoPosEnvioSatisfacao onAvaliar={() => setPesquisaAberta(true)} />
+      {pesquisaAberta && (
+        <PesquisaSatisfacaoModal
+          onClose={() => setPesquisaAberta(false)}
+          gatilho="pos-envio"
+        />
+      )}
+      <section className="flex flex-col gap-4 rounded-xl border border-line bg-white p-[22px]">
       <header className="flex flex-col gap-1">
         <h2 className="text-[24px] font-bold text-ink">Meu resultado</h2>
         <p className="text-[13px] text-muted">{`Enviado em ${a.enviadoEm}`}</p>
@@ -595,6 +605,7 @@ export function AlunoResultado() {
         />
       </section>
     </section>
+    </>
   )
 }
 

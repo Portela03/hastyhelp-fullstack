@@ -6,6 +6,8 @@ import type { AutoavaliacaoDTO, FormularioDTO, TurmaDTO } from './api/mapeadores
 import type { AutoavaliacaoAluno, Papel, Sessao } from './data/aluno'
 import { editavel } from './data/aluno'
 import type { Equipe, Formulario, Pergunta, StatusFormulario } from './data/tipos'
+import type { NovaPesquisaInput, PesquisaSatisfacao } from './data/satisfacao'
+import { DADOS_DEMO_PESQUISAS, validarPesquisa } from './data/satisfacao'
 
 export interface PreferenciasPerfil {
   notificacoesEmail: boolean
@@ -84,10 +86,32 @@ interface Store {
   enviarAutoavaliacao: (id: string, observacao?: string) => Promise<boolean>
   preferencias: PreferenciasPerfil
   atualizarPreferencias: (dados: Partial<PreferenciasPerfil>) => Promise<void>
+  pesquisas: PesquisaSatisfacao[]
+  registrarPesquisa: (dados: NovaPesquisaInput) => { sucesso: boolean; erro?: string }
 }
 
 const StoreContext = createContext<Store | null>(null)
 const CHAVE_SESSAO = 'hastyhelp:sessao'
+const CHAVE_PESQUISAS = 'hastyhelp:pesquisas'
+
+function lerPesquisas(): PesquisaSatisfacao[] {
+  try {
+    const bruto = localStorage.getItem(CHAVE_PESQUISAS)
+    if (!bruto) return DADOS_DEMO_PESQUISAS
+    const parsed = JSON.parse(bruto) as PesquisaSatisfacao[]
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DADOS_DEMO_PESQUISAS
+  } catch {
+    return DADOS_DEMO_PESQUISAS
+  }
+}
+
+function gravarPesquisas(lista: PesquisaSatisfacao[]) {
+  try {
+    localStorage.setItem(CHAVE_PESQUISAS, JSON.stringify(lista))
+  } catch {
+    // localStorage indisponível
+  }
+}
 
 function lerSessao(): Sessao | null {
   try {
@@ -125,6 +149,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [formularios, setFormularios] = useState<Formulario[]>([])
   const [autoavaliacoes, setAutoavaliacoes] = useState<AutoavaliacaoAluno[]>([])
   const [preferencias, setPreferencias] = useState<PreferenciasPerfil>(PREFERENCIAS_PADRAO)
+  const [pesquisas, setPesquisas] = useState<PesquisaSatisfacao[]>(lerPesquisas)
   const papelRef = useRef<Papel | null>(sessao?.papel ?? null)
 
   useEffect(() => {
@@ -305,6 +330,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await api('PATCH', '/perfil/preferencias', dados)
   }, [])
 
+  const registrarPesquisa = useCallback((dados: NovaPesquisaInput) => {
+    const validacao = validarPesquisa(dados)
+    if (!validacao.valido) {
+      return { sucesso: false, erro: validacao.erro }
+    }
+    const nova: PesquisaSatisfacao = {
+      id: `pesquisa-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      perfil: dados.perfil,
+      data: new Date().toISOString(),
+      csat: dados.csat,
+      nps: dados.nps,
+      comentario: dados.comentario?.trim() || undefined,
+      gatilho: dados.gatilho,
+    }
+    setPesquisas((atuais) => {
+      const atualizadas = [nova, ...atuais]
+      gravarPesquisas(atualizadas)
+      return atualizadas
+    })
+    return { sucesso: true }
+  }, [])
+
   const value = useMemo<Store>(
     () => ({
       sessao,
@@ -329,8 +376,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       enviarAutoavaliacao,
       preferencias,
       atualizarPreferencias,
+      pesquisas,
+      registrarPesquisa,
     }),
-    [sessao, carregando, aviso, entrar, cadastrar, sair, recarregar, equipes, formularios, autoavaliacoes, adicionarEquipe, atualizarEquipe, removerEquipe, adicionarFormulario, atualizarFormulario, removerFormulario, comAviso, salvarResposta, enviarAutoavaliacao, preferencias, atualizarPreferencias],
+    [sessao, carregando, aviso, entrar, cadastrar, sair, recarregar, equipes, formularios, autoavaliacoes, adicionarEquipe, atualizarEquipe, removerEquipe, adicionarFormulario, atualizarFormulario, removerFormulario, comAviso, salvarResposta, enviarAutoavaliacao, preferencias, atualizarPreferencias, pesquisas, registrarPesquisa],
   )
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
 }
