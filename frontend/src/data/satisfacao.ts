@@ -129,76 +129,13 @@ export function isPesquisaTrimestralPendente(pesquisasDoPerfil: PesquisaSatisfac
   return diasPassados >= 90
 }
 
-export const DADOS_DEMO_PESQUISAS: PesquisaSatisfacao[] = [
-  {
-    id: 'demo-1',
-    perfil: 'aluno',
-    data: '2026-11-03T14:30:00.000Z',
-    csat: 5,
-    nps: 10,
-    comentario: 'O resultado aparece rápido e a tela é clara.',
-    gatilho: 'continua',
-  },
-  {
-    id: 'demo-2',
-    perfil: 'aluno',
-    data: '2026-10-29T11:15:00.000Z',
-    csat: 2,
-    nps: 5,
-    comentario: 'Não entendi o que significa I, P e C no resultado.',
-    gatilho: 'pos-envio',
-  },
-  {
-    id: 'demo-3',
-    perfil: 'professor',
-    data: '2026-10-27T16:00:00.000Z',
-    csat: 5,
-    nps: 10,
-    comentario: 'A tela de métricas ajuda a ver onde a turma tem mais dificuldade.',
-    gatilho: 'continua',
-  },
-  {
-    id: 'demo-4',
-    perfil: 'aluno',
-    data: '2026-10-15T09:40:00.000Z',
-    csat: 3,
-    nps: 6,
-    comentario: 'No celular o menu demora a abrir.',
-    gatilho: 'continua',
-  },
-  {
-    id: 'demo-5',
-    perfil: 'professor',
-    data: '2026-10-10T18:20:00.000Z',
-    csat: 4,
-    nps: 8,
-    comentario: 'Gostaria de exportar os resultados da turma em planilha.',
-    gatilho: 'continua',
-  },
-  {
-    id: 'demo-6',
-    perfil: 'aluno',
-    data: '2026-09-28T10:10:00.000Z',
-    csat: 5,
-    nps: 9,
-    comentario: 'Muito fácil de usar no laboratório.',
-    gatilho: 'pos-envio',
-  },
-  {
-    id: 'demo-7',
-    perfil: 'professor',
-    data: '2026-09-20T15:00:00.000Z',
-    csat: 4,
-    nps: 9,
-    gatilho: 'trimestral',
-  },
-  {
-    id: 'demo-8',
-    perfil: 'aluno',
-    data: '2026-09-15T12:00:00.000Z',
-    csat: 5,
-    nps: 10,
-    gatilho: 'pos-envio',
-  },
-]
-
+/** Restaura as respostas salvas no navegador; sem nada salvo (ou conteúdo inválido) começa vazio. */
+export function restaurarPesquisas(bruto: string | null): PesquisaSatisfacao[] {
+  if (!bruto) return []
+  try {
+    const dados: unknown = JSON.parse(bruto)
+    return Array.isArray(dados) ? (dados as PesquisaSatisfacao[]) : []
+  } catch {
+    return []
+  }
+}

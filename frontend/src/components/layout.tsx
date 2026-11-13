@@ -126,7 +126,9 @@ const ESTILO_VOLTAR =
  * Com `para`, leva à página-mãe; sem `para`, volta no histórico do navegador
  * (e fica desabilitado quando não há para onde voltar).
  */
-export function BotaoVoltar({ para, rotulo, className, esconderCssIcon = false }: { para?: string; rotulo?: string; className?: string, esconderCssIcon?: boolean }) {
+/** `compacto`: em telas pequenas mostra só a seta (o nome acessível continua no aria-label). */
+export function BotaoVoltar({ para, rotulo, className, esconderCssIcon = false, compacto = false }: { para?: string; rotulo?: string; className?: string; esconderCssIcon?: boolean; compacto?: boolean }) {
+  const texto = compacto ? <span className="hidden sm:inline">Voltar</span> : 'Voltar'
   const navigate = useNavigate()
 
   const cssIcon = esconderCssIcon ? "text-[20px]" : cx(
@@ -138,7 +140,7 @@ export function BotaoVoltar({ para, rotulo, className, esconderCssIcon = false }
     return (
       <Link to={para} aria-label={`Voltar para ${rotulo ?? 'a página anterior'}`} className={cx(ESTILO_VOLTAR, className)}>
         <Icon name="arrow_back" className={cssIcon}/>
-        Voltar
+        {texto}
       </Link>
     )
   }
@@ -152,7 +154,7 @@ export function BotaoVoltar({ para, rotulo, className, esconderCssIcon = false }
       className={cx(ESTILO_VOLTAR, 'cursor-pointer disabled:cursor-not-allowed disabled:opacity-50', className)}
     >
       <Icon name="arrow_back" className={cssIcon}/>
-      Voltar
+      {texto}
     </button>
   )
 }
@@ -197,17 +199,19 @@ export function AppShell({
             >
               <Icon name="menu" />
             </button>
-            <BotaoVoltar para={voltar?.para} rotulo={voltar?.rotulo} />
+            <BotaoVoltar para={voltar?.para} rotulo={voltar?.rotulo} compacto />
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <button
               type="button"
               onClick={() => setPesquisaAberta(true)}
-              className="relative flex cursor-pointer items-center gap-1.5 rounded-lg border border-line-input bg-white px-3 py-1.5 text-[14px] font-medium text-ink transition hover:border-ink hover:bg-page"
+              aria-label="Avaliar o HastyHelp"
+              className="relative flex cursor-pointer items-center gap-1.5 rounded-lg border border-line-input bg-white px-2 py-1.5 text-[14px] font-medium text-ink transition hover:border-ink hover:bg-page sm:px-3"
               title="Deixe sua opinião anônima sobre o HastyHelp"
             >
               <Icon name="rate_review" className="text-[18px] text-muted" />
-              <span>Avaliar o HastyHelp</span>
+              {/* em telas pequenas só o ícone, para a barra superior caber (RNF02) */}
+              <span className="hidden sm:inline">Avaliar o HastyHelp</span>
               {trimestralPendente && (
                 <span
                   title="Pesquisa trimestral pendente"

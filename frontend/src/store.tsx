@@ -7,7 +7,7 @@ import type { AutoavaliacaoAluno, Papel, Sessao } from './data/aluno'
 import { editavel } from './data/aluno'
 import type { Equipe, Formulario, Pergunta, StatusFormulario } from './data/tipos'
 import type { NovaPesquisaInput, PesquisaSatisfacao } from './data/satisfacao'
-import { DADOS_DEMO_PESQUISAS, validarPesquisa } from './data/satisfacao'
+import { restaurarPesquisas, validarPesquisa } from './data/satisfacao'
 
 export interface PreferenciasPerfil {
   notificacoesEmail: boolean
@@ -96,12 +96,9 @@ const CHAVE_PESQUISAS = 'hastyhelp:pesquisas'
 
 function lerPesquisas(): PesquisaSatisfacao[] {
   try {
-    const bruto = localStorage.getItem(CHAVE_PESQUISAS)
-    if (!bruto) return DADOS_DEMO_PESQUISAS
-    const parsed = JSON.parse(bruto) as PesquisaSatisfacao[]
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DADOS_DEMO_PESQUISAS
+    return restaurarPesquisas(localStorage.getItem(CHAVE_PESQUISAS))
   } catch {
-    return DADOS_DEMO_PESQUISAS
+    return []
   }
 }
 
