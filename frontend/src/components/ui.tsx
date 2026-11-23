@@ -159,6 +159,7 @@ export function ButtonBrown({ children, className, ...rest }: BtnProps) {
         'transition duration-100',
         'hover:bg-btn-brown-hover hover:shadow-btn-hover',
         'active:shadow-none',
+        'disabled:cursor-not-allowed disabled:border-transparent disabled:bg-[#eeeeee] disabled:text-[#888888] disabled:shadow-none disabled:hover:bg-[#eeeeee]',
         className,
       )}
     >

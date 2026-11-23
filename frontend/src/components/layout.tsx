@@ -18,7 +18,7 @@ const NAV_PROFESSOR = [
 ]
 
 const NAV_ALUNO = [
-  { to: '/aluno/turmas', label: 'Turmas', icon: 'groups' },
+  { to: '/aluno/turmas', label: 'Equipes', icon: 'groups' },
   { to: '/aluno/autoavaliacoes', label: 'Autoavaliações', icon: 'assignment' },
   { to: '/aluno/desempenho', label: 'Desempenho', icon: 'bar_chart' },
 ]
