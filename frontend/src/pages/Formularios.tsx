@@ -17,59 +17,104 @@ const ROTULO_STATUS: Record<StatusFormulario, string> = { agendado: 'Agendado', 
 /* Lista */
 
 function FormRow({ form }: { form: Formulario }) {
-  const { equipes } = useStore()
+  const { equipes, atualizarFormulario, removerFormulario, executar } = useStore()
   const navigate = useNavigate()
   const equipe = equipes.find((e) => e.id === form.equipeId)
   const abrir = () => navigate(`/avaliacoes/${form.id}`)
+  const [editar, setEditar] = useState(false)
   const rascunho = form.status === 'rascunho'
   return (
-    <li
-      role="link"
-      tabIndex={0}
-      aria-label={`Abrir formulário ${form.titulo}`}
-      onClick={abrir}
-      onKeyDown={(e) => e.key === 'Enter' && abrir()}
-      className={cx(
-        "form-card flex cursor-pointer items-center gap-3 rounded-lg border border-card-line bg-white p-3",
-        "transition duration-100",
-        "hover:bg-card-hover hover:shadow-card-hover",
-        "active:shadow-none"
-      )}
-    >
-      {!rascunho && equipe && (
-        <span className="form-team-badge">
-          <TeamBadge
-            sigla={equipe.sigla}
-            cor={equipe.cor}
-            size={68}
-            fontSize={32}
-          />
-        </span>
-      )}      
-      <div className="flex min-w-0 flex-1 items-stretch justify-between gap-3">
-        <div className="flex min-w-0 flex-col justify-center gap-1">
-          <h2 className="text-[16px] font-semibold text-ink">{form.titulo}</h2>
-          {rascunho ? (
-            <p className="text-[16px] text-card-sec">{`Última modificação: ${form.data}`}</p>
-          ) : (
-            <>
-              <p className="flex flex-wrap items-center gap-x-[5px] text-[16px] text-placeholder">
-                {equipe?.nome}
-                <span className="font-inter text-[12px]">•</span>
-                {form.periodo}
-              </p>
-              <p className="text-[16px] text-card-sec">{`${form.respostas}/${form.total} respostas`}</p>
-            </>
-          )}
-        </div>
-        <div className={cx('flex shrink-0 flex-col items-end', rascunho ? 'justify-center' : 'justify-between')}>
-          <span className="form-status">
-            <StatusPill status={form.status} />
+    <>
+      <li
+        role="link"
+        tabIndex={0}
+        aria-label={`Abrir formulário ${form.titulo}`}
+        onClick={abrir}
+        onKeyDown={(e) => e.key === 'Enter' && abrir()}
+        className={cx(
+          "form-card flex cursor-pointer items-center gap-3 rounded-lg border border-card-line bg-white p-3",
+          "transition duration-100",
+          "hover:bg-card-hover hover:shadow-card-hover",
+          "active:shadow-none"
+        )}
+      >
+        {!rascunho && equipe && (
+          <span className="form-team-badge">
+            <TeamBadge
+              sigla={equipe.sigla}
+              cor={equipe.cor}
+              size={68}
+              fontSize={32}
+            />
           </span>
-          {!rascunho && <span className="text-[16px] text-ink">{form.data}</span>}
+        )}      
+        <div className="flex min-w-0 flex-1 items-stretch justify-between gap-3">
+          <div className="flex min-w-0 flex-col justify-center gap-1">
+            <h2 className="text-[16px] font-semibold text-ink">{form.titulo}</h2>
+            {rascunho ? (
+              <p className="text-[16px] text-card-sec">{`Última modificação: ${form.data}`}</p>
+            ) : (
+              <>
+                <p className="flex flex-wrap items-center gap-x-[5px] text-[16px] text-placeholder">
+                  {equipe?.nome}
+                  <span className="font-inter text-[12px]">•</span>
+                  {form.periodo}
+                </p>
+                <p className="text-[16px] text-card-sec">{`${form.respostas}/${form.total} respostas`}</p>
+              </>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center justify-center gap-2">
+            <div className="flex h-full flex-col items-center justify-between">
+              <span className="form-status">
+                <StatusPill status={form.status} />
+              </span>
+
+              {!rascunho && (
+                <span className="mt-1 text-center text-[16px] text-ink">
+                  {form.data}
+                </span>
+              )}
+            </div>
+
+            <OptionsMenu
+              label={`Opções do formulário ${form.titulo}`}
+              items={[
+                {
+                  label: 'Editar',
+                  icon: 'edit',
+                  onClick: () => setEditar(true),
+                },
+                ...acoesDeStatus(form, (status) =>
+                  executar(() => atualizarFormulario(form.id, { status })),
+                ),
+                {
+                  label: 'Excluir',
+                  icon: 'delete',
+                  destructive: true,
+                  onClick: () => {
+                    if (
+                      window.confirm(
+                        `Excluir o formulário "${form.titulo}"? As respostas dos alunos também serão apagadas.`,
+                      )
+                    ) {
+                      void removerFormulario(form.id)
+                    }
+                  },
+                },
+              ]}
+            />
+          </div>
         </div>
-      </div>
-    </li>
+      </li>
+
+      {editar && (
+        <EditarFormularioModal
+          formulario={form}
+          onClose={() => setEditar(false)}
+        />
+      )}
+    </>
   )
 }
 
@@ -94,26 +139,62 @@ export function Formularios() {
   const turmas = [...new Set(equipes.map((e) => e.nome))]
 
   return (
-    <AppShell action={<ButtonPrimary icon="add" onClick={() => setModal(true)} className="!text-[18px]">Criar formulário</ButtonPrimary>}>
+    <AppShell action={<ButtonPrimary icon="add" onClick={() => setModal(true)}   className="!bg-btn-brown hover:!bg-btn-brown-hover !text-[16px]">Criar formulário</ButtonPrimary>}>
       <Banner variante="lista" titulo="Formulários" subtitulo="Aqui você acompanha o desempenho de cada formulário e pode acessar seus rascunhos e agendamentos." />
-      <Toolbar>
-        <div className="flex flex-wrap items-center gap-3">
-          <SearchBox value={busca} onChange={setBusca} placeholder="Buscar formulários..." />
-          <FilterSelect label="Turma" all="Todas" value={turma} onChange={setTurma} options={turmas} />
-          <FilterSelect label="Status" value={status} onChange={setStatus} options={Object.values(ROTULO_STATUS)} />
-          <FilterSelect label="Período" value={periodo} onChange={setPeriodo} options={[...PERIODOS]} />
-        </div>
-        <SortButton icon={sortIcon} label="Data de publicação" onClick={() => setAsc((v) => !v)} />
-      </Toolbar>
-      {lista.length === 0 ? (
-        <p className="text-[16px] text-muted">Nenhum formulário encontrado.</p>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {lista.map((f) => (
-            <FormRow key={f.id} form={f} />
-          ))}
-        </ul>
-      )}
+      {formularios.length > 0 && (
+        <>
+          <Toolbar>
+            <div className="flex flex-wrap items-center gap-3">
+              <SearchBox value={busca} onChange={setBusca} placeholder="Buscar formulários..." />
+              <FilterSelect label="Turma" all="Todas" value={turma} onChange={setTurma} options={turmas} />
+              <FilterSelect label="Status" value={status} onChange={setStatus} options={Object.values(ROTULO_STATUS)} />
+              <FilterSelect label="Período" value={periodo} onChange={setPeriodo} options={[...PERIODOS]} />
+            </div>
+            <SortButton icon={sortIcon} label="Data de publicação" onClick={() => setAsc((v) => !v)} />
+          </Toolbar>
+
+          {lista.length === 0 ? (
+                <p className="text-[16px] text-muted">
+                  Nenhum formulário encontrado.
+                </p>
+              ) : (
+                <ul className="flex flex-col gap-3">
+                  {lista.map((formulario) => (
+                    <FormRow key={formulario.id} form={formulario} />
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+
+          {formularios.length === 0 && (
+            <div className="flex min-h-[calc(100vh-260px)] flex-col items-center justify-center gap-4 p-6 text-center">
+              <span
+                className="material-icons-round !text-[56px] text-muted"
+                aria-hidden="true"
+              >
+                description
+              </span>
+
+              <div className="flex max-w-[760px] flex-col gap-2">
+                <h2 className="text-[20px] font-semibold text-ink">
+                  Você ainda não possui formulários
+                </h2>
+                <p className="text-[16px] text-muted">
+                  Crie seu primeiro formulário para avaliar a compreensão dos alunos
+                  e acompanhar os resultados por equipe.
+                </p>
+              </div>
+
+              <ButtonPrimary
+                icon="add"
+                onClick={() => setModal(true)}
+                className="!bg-btn-brown hover:!bg-btn-brown-hover !text-[16px]"
+              >
+                Criar formulário
+              </ButtonPrimary>
+            </div>
+          )}
       {modal && <CriarFormularioModal onClose={() => setModal(false)} />}
     </AppShell>
   )
@@ -278,6 +359,7 @@ interface AlunosFormularioDTO {
 }
 
 export function FormularioAlunos() {
+  const navigate = useNavigate()
   const form = useForm()
   const { dados, erro } = useApi<AlunosFormularioDTO>(`/formularios/${form.id}/alunos`, form)
   const [respostasDe, setRespostasDe] = useState<{ id: string; nome: string } | null>(null)
@@ -289,30 +371,102 @@ export function FormularioAlunos() {
   )
   const simples = (lista: Array<{ id: string; nome: string }>, deslocamento: number) =>
     lista.map((a, i) => [<AlunoCell key={a.id} nome={a.nome} cor={corDe(i + deslocamento)} iniciais={iniciaisDe(a.nome)} />, menu(a)])
+    
+    //Caso não haja alunos 
+    if (total === 0) {
+    return (
+      <div className="flex min-h-[calc(100vh-420px)] flex-col items-center justify-center gap-4 p-6 text-center">
+        <span
+          className="material-icons-round !text-[56px] text-muted"
+          aria-hidden="true"
+        >
+          group_add
+        </span>
+
+        <div className="flex max-w-[760px] flex-col gap-2">
+          <h2 className="text-[20px] font-semibold text-ink">
+            Esta turma ainda não possui alunos
+          </h2>
+          <p className="text-[15px] leading-relaxed text-muted max-w-md">
+            Para convidar alunos, selecione uma equipe, abra a aba{" "}
+            <span className="font-medium text-neutral-800">Alunos</span> e compartilhe o link de acesso.
+          </p>
+        </div>
+
+        <ButtonPrimary
+          icon="group_add"
+          onClick={() => navigate(`/equipes/${form.equipeId}/alunos`)}
+          className="!bg-btn-brown hover:!bg-btn-brown-hover !text-[18px]"
+        >
+          Adicionar alunos
+        </ButtonPrimary>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-4">
       {respostasDe && <RespostasDoAlunoModal nome={respostasDe.nome} caminho={`/formularios/${form.id}/alunos/${respostasDe.id}`} onClose={() => setRespostasDe(null)} />}
       <Section titulo={`Responderam (${dados.responderam.length}/${total})`}>
-        <DataTable
-          colunas={[
-            { titulo: 'Aluno' },
-            { titulo: 'Autoavaliação', largura: '200px', centro: true },
-            { titulo: 'Maior Dificuldade', largura: '200px', centro: true },
-            { titulo: 'Ação', largura: '120px', centro: true },
-          ]}
-          linhas={dados.responderam.map((a, i) => [
-            <AlunoCell key={a.id} nome={a.nome} cor={corDe(i)} iniciais={iniciaisDe(a.nome)} />,
-            <strong key="b">{formatarNota(a.nota)}</strong>,
-            a.nivel ? <DifficultyLetter key="n" letra={a.nivel} className="!font-normal" /> : '—',
-            menu(a),
-          ])}
-        />
+        {dados.responderam.length === 0 ? (
+          <p className="px-3 py-2 text-[16px] text-muted">
+            Nenhuma resposta enviada ainda.
+          </p>
+        ) : (
+          <DataTable
+            colunas={[
+              { titulo: 'Aluno' },
+              { titulo: 'Autoavaliação', largura: '200px', centro: true },
+              { titulo: 'Maior Dificuldade', largura: '200px', centro: true },
+              { titulo: 'Ação', largura: '120px', centro: true },
+            ]}
+            linhas={dados.responderam.map((a, i) => [
+              <AlunoCell
+                key={a.id}
+                nome={a.nome}
+                cor={corDe(i)}
+                iniciais={iniciaisDe(a.nome)}
+              />,
+              <strong key="b">{formatarNota(a.nota)}</strong>,
+              a.nivel
+                ? <DifficultyLetter key="n" letra={a.nivel} className="!font-normal" />
+                : '—',
+              menu(a),
+            ])}
+          />
+        )}
       </Section>
+
       <Section titulo={`Visualizaram (${dados.visualizaram.length}/${total})`}>
-        <DataTable colunas={[{ titulo: 'Aluno' }, { titulo: 'Ação', largura: '120px', centro: true }]} linhas={simples(dados.visualizaram, 2)} />
+        {dados.visualizaram.length === 0 ? (
+          <p className="px-3 py-2 text-[16px] text-muted">
+            Nenhum aluno visualizou o formulário no momento.
+          </p>
+        ) : (
+          <DataTable
+            colunas={[
+              { titulo: 'Aluno' },
+              { titulo: 'Ação', largura: '120px', centro: true },
+            ]}
+            linhas={simples(dados.visualizaram, 2)}
+          />
+        )}
       </Section>
+
       <Section titulo={`Pendente (${dados.pendentes.length}/${total})`}>
-        <DataTable colunas={[{ titulo: 'Aluno' }, { titulo: 'Ação', largura: '120px', centro: true }]} linhas={simples(dados.pendentes, 4)} />
+        {dados.pendentes.length === 0 ? (
+          <p className="px-3 py-2 text-[16px] text-muted">
+            Nenhum aluno pendente.
+          </p>
+        ) : (
+          <DataTable
+            colunas={[
+              { titulo: 'Aluno' },
+              { titulo: 'Ação', largura: '120px', centro: true },
+            ]}
+            linhas={simples(dados.pendentes, 4)}
+          />
+        )}
       </Section>
     </div>
   )
@@ -396,7 +550,7 @@ function ObservacaoItem({ formularioId, o, aoMudar }: { formularioId: string; o:
           </button>
         )}
         <button type="button" onClick={() => moderar({ oculta: !o.oculta })} className="cursor-pointer text-muted underline">
-          {o.oculta ? 'Mostrar' : 'Ocultar'}
+          {o.oculta ? 'Exibir' : 'Ocultar'}
         </button>
         {o.oculta && <span className="text-muted">Oculta do resumo</span>}
       </div>

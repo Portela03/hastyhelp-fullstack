@@ -307,10 +307,10 @@ function CampoPrazoEGabarito({ prazo, setPrazo, gabarito, setGabarito }: { prazo
   )
 }
 
-export function CriarFormularioModal({ onClose }: { onClose: () => void }) {
+export function CriarFormularioModal({ onClose, equipeIdInicial }: { onClose: () => void, equipeIdInicial?: string}) {
   const { equipes, adicionarFormulario } = useStore()
   const [nome, setNome] = useState('')
-  const [equipeId, setEquipeId] = useState(equipes[0]?.id ?? '')
+  const [equipeId, setEquipeId] = useState(equipeIdInicial ?? equipes[0]?.id ?? '')
   const [data, setData] = useState('')
   const [hora, setHora] = useState('')
   const [postar, setPostar] = useState(false)

@@ -5,7 +5,7 @@ import dotI from '../assets/figma/dot-i.svg'
 import dotP from '../assets/figma/dot-p.svg'
 import sortIcon from '../assets/figma/sort.svg'
 import { AppShell, Banner, BannerStat, DataTable, Section, TabBar, Toolbar } from '../components/layout'
-import { CriarEquipeModal, EditarEquipeModal, EditarFormularioModal } from '../components/modals'
+import { CriarEquipeModal, EditarEquipeModal, CriarFormularioModal, EditarFormularioModal } from '../components/modals'
 import { LinkDeRedefinicaoModal, RespostasDoAlunoModal } from '../components/modals-alunos'
 import { Avatar, ButtonPrimary, DifficultyLetter, FilterSelect, KpiCard, Panel, ProgressBar, SearchBox, StatusPill, SortButton, TeamBadge, cx, OptionsMenu } from '../components/ui'
 import { api } from '../api/client'
@@ -59,7 +59,7 @@ function TeamCard({ equipe, onEditar, onAlternarVisibilidade }: TeamCardProps) {
                 onClick: () => onEditar(equipe),
               },
               {
-                label: equipe.oculta ? 'Desocultar' : 'Ocultar',
+                label: equipe.oculta ? 'Exibir' : 'Ocultar',
                 icon: equipe.oculta ? 'visibility' : 'visibility_off',
                 onClick: () => onAlternarVisibilidade(equipe),
               },
@@ -118,56 +118,91 @@ export function Equipes() {
 }
 
   return (
-    <AppShell action={<ButtonPrimary icon="add" onClick={() => setModal(true)} className="!text-[18px]">Criar equipe</ButtonPrimary>}>
+    <AppShell action={<ButtonPrimary icon="add" onClick={() => setModal(true)}   className="!bg-btn-brown hover:!bg-btn-brown-hover !text-[16px]">Criar equipe</ButtonPrimary>}>
       <Banner titulo="Minhas Equipes" subtitulo="Bem-vindo(a) de volta! Aqui você acompanha o progresso e o engajamento das suas turmas com facilidade." />
-      <Toolbar>
-        <div className="flex flex-wrap items-center gap-3">
-          <SearchBox value={busca} onChange={setBusca} placeholder="Buscar equipes..." />
-          <FilterSelect label="Período" value={periodo} onChange={setPeriodo} options={[...PERIODOS]} />
-        </div>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <SortButton icon={sortIcon} label={asc ? 'Alfabeticamente' : 'Alfabeticamente (Z-A)'} onClick={() => setAsc((v) => !v)} />
-        </div>
-      </Toolbar>
-      <Section titulo="Equipes">
-        {equipesVisiveis.length === 0 ? (
-          <p className="text-[16px] text-muted">
-            Nenhuma equipe encontrada.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2 xl:grid-cols-3">
-            {equipesVisiveis.map((equipe) => (
-              <TeamCard
-                key={equipe.id}
-                equipe={equipe}
-                onEditar={setEquipeEditando}
-                onAlternarVisibilidade={alternarVisibilidade}
-              />
-            ))}
+      {equipes.length > 0 && (
+        <>
+          <Toolbar>
+            <div className="flex flex-wrap items-center gap-3">
+              <SearchBox value={busca} onChange={setBusca} placeholder="Buscar equipes..."/>
+              <FilterSelect label="Período" value={periodo} onChange={setPeriodo} options={[...PERIODOS]}/>
+            </div>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <SortButton icon={sortIcon} label={asc ? 'Alfabeticamente' : 'Alfabeticamente (Z-A)'} onClick={() => setAsc((v) => !v)} />
+            </div>
+          </Toolbar>
+
+          <Section titulo="Equipes">
+            {equipesVisiveis.length === 0 ? (
+              <p className="text-[16px] text-muted">
+                Nenhuma equipe encontrada.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2 xl:grid-cols-3">
+                {equipesVisiveis.map((equipe) => (
+                  <TeamCard
+                    key={equipe.id}
+                    equipe={equipe}
+                    onEditar={setEquipeEditando}
+                    onAlternarVisibilidade={alternarVisibilidade}
+                  />
+                ))}
+              </div>
+            )}
+          </Section>
+
+          {equipesOcultas.length > 0 && (
+            <Section titulo="Equipes ocultas" inicialmenteAberta={false}>
+              {equipesOcultas.length === 0 ? (
+                <p className="text-[16px] text-muted">
+                  Nenhuma equipe ocultada.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2 xl:grid-cols-3">
+                  {equipesOcultas.map((equipe) => (
+                    <TeamCard
+                      key={equipe.id}
+                      equipe={equipe}
+                      onEditar={setEquipeEditando}
+                      onAlternarVisibilidade={alternarVisibilidade}
+                    />
+                  ))}
+                </div>
+              )}
+            </Section>
+          )}
+        </>
+      )}
+
+      {equipes.length === 0 && (
+        <div className="flex min-h-[calc(100vh-260px)] flex-col items-center justify-center gap-4 p-6 text-center">
+          <span className="material-icons-round !text-[56px] text-muted" aria-hidden="true">
+            groups
+          </span>
+
+          <div className="flex max-w-[760px] flex-col gap-2">
+            <h2 className="text-[20px] font-semibold text-ink">
+              Você ainda não possui equipes
+            </h2>
+            <p className="text-[16px] text-muted">
+              Crie sua primeira equipe para organizar suas turmas e compartilhar
+              formulários de autoavaliação com os alunos.
+            </p>
           </div>
-        )}
-      </Section>
+
+          <ButtonPrimary
+            icon="add"
+            onClick={() => setModal(true)}
+            className="!bg-btn-brown hover:!bg-btn-brown-hover !text-[16px]"
+          >
+            Criar equipe
+          </ButtonPrimary>
+        </div>
+      )}
+
       {modal && (
         <CriarEquipeModal onClose={() => setModal(false)} />
       )}
-
-      {equipesOcultas.length > 0 && (
-      <Section
-        titulo="Equipes ocultas"
-        inicialmenteAberta={false}
-      >
-        <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2 xl:grid-cols-3">
-          {equipesOcultas.map((equipe) => (
-            <TeamCard
-              key={equipe.id}
-              equipe={equipe}
-              onEditar={setEquipeEditando}
-              onAlternarVisibilidade={alternarVisibilidade}
-            />
-          ))}
-        </div>
-      </Section>
-)}
 
       {equipeEditando && (
         <EditarEquipeModal
@@ -195,13 +230,16 @@ export function EquipeDetalhe() {
       voltar={{ para: '/equipes', rotulo: 'Equipes' }}
       action={
         <div className="flex items-center gap-3">
-          <ButtonPrimary icon="edit" onClick={() => setEditar(true)} className='!text-[16px]'> Editar equipe </ButtonPrimary>
-
           <OptionsMenu
             label={`Opções da equipe ${equipe.nome}`}
             items={[
               {
-                label: equipe.oculta ? 'Desocultar equipe' : 'Ocultar equipe',
+                label: 'Editar equipe',
+                icon: 'edit',
+                onClick: () => setEditar(true),
+              },
+              {
+                label: equipe.oculta ? 'Exibir equipe' : 'Ocultar equipe',
                 icon: equipe.oculta ? 'visibility' : 'visibility_off',
                 onClick: () => {
                   atualizarEquipe(equipe.id, {
@@ -274,6 +312,8 @@ export function EquipeFormularios() {
   const [status, setStatus] = useState('')
   const [asc, setAsc] = useState(false)
   const [formularioEditando, setFormularioEditando] = useState<Formulario | null>(null)
+  const [criandoFormulario, setCriandoFormulario] = useState(false)
+
 
   const linhas = formularios
     .filter((formulario) => formulario.equipeId === equipe.id)
@@ -288,140 +328,185 @@ export function EquipeFormularios() {
 
   return (
     <>
-      <Toolbar>
-        <div className="flex flex-wrap items-center gap-3">
-          <SearchBox
-            value={busca}
-            onChange={setBusca}
-            placeholder="Buscar formulários..."
-          />
+      {linhas.length > 0 && (
+        <>
+          <Toolbar>
+            <div className="flex flex-wrap items-center gap-3">
+              <SearchBox
+                value={busca}
+                onChange={setBusca}
+                placeholder="Buscar formulários..."
+              />
 
-          <FilterSelect
-            label="Status"
-            value={status}
-            onChange={setStatus}
-            options={['agendado', 'rascunho', 'fechado', 'aberto', 'concluido']}
-          />
-        </div>
+              <FilterSelect
+                label="Status"
+                value={status}
+                onChange={setStatus}
+                options={['agendado', 'rascunho', 'fechado', 'aberto', 'concluido']}
+              />
+            </div>
 
-        <SortButton
-          icon={sortIcon}
-          label="Data de publicação"
-          onClick={() => setAsc((v) => !v)}
-        />
-      </Toolbar>
-
-      {ordenadas.length === 0 ? (
-        <p className="text-[16px] text-muted">
-          Nenhum formulário encontrado para esta equipe.
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {ordenadas.map((formulario) => {
-            const percentual = formulario.total
-              ? (formulario.respostas / formulario.total) * 100
-              : 0
-
-            return (
-              <li
-                key={formulario.id}
-                role="link"
-                tabIndex={0}
-                aria-label={`Abrir formulário ${formulario.titulo}`}
-                onClick={() => abrirFormulario(formulario.id)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault()
-                    abrirFormulario(formulario.id)
-                  }
-                }}
-                className={cx(
-                  'flex cursor-pointer flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-card-line bg-white p-3',
-                  'transition duration-100',
-                  'hover:bg-card-hover hover:shadow-card-hover',
-                  'active:shadow-none',
-                )}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <SortButton
+                icon={sortIcon}
+                label="Data de publicação"
+                onClick={() => setAsc((v) => !v)}
+              />
+              <ButtonPrimary
+                icon="add"
+                onClick={() => setCriandoFormulario(true)}
+                className="!border-ink !bg-btn-brown hover:!bg-btn-brown-hover !shadow-none hover:!shadow-none active:!shadow-none !text-[18px]"
               >
-                <div className="flex min-w-[240px] flex-1 flex-col gap-1">
-                  <div className="flex items-center gap-3">
-                    <StatusPill status={formulario.status} />
+                Criar formulário
+              </ButtonPrimary>
+            </div>
+          </Toolbar>
 
-                    <h3 className="min-w-0 text-[20px] font-semibold text-ink">
-                      {formulario.titulo}
-                    </h3>
-                  </div>
+          {ordenadas.length === 0 ? (
+            <p className="text-[16px] text-muted">
+              Nenhum formulário encontrado para esta equipe.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {ordenadas.map((formulario) => {
+                const percentual = formulario.total
+                  ? (formulario.respostas / formulario.total) * 100
+                  : 0
 
-                  <div className="flex max-w-[342px] flex-col gap-1">
-                    <div className="flex justify-between text-[16px] text-muted">
-                      <span>Taxa de resposta:</span>
-                      <span>
-                        {`${formulario.respostas}/${formulario.total}`}
-                      </span>
+                return (
+                  <li
+                    key={formulario.id}
+                    role="link"
+                    tabIndex={0}
+                    aria-label={`Abrir formulário ${formulario.titulo}`}
+                    onClick={() => abrirFormulario(formulario.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        abrirFormulario(formulario.id)
+                      }
+                    }}
+                    className={cx(
+                      'flex cursor-pointer flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-card-line bg-white p-3',
+                      'transition duration-100',
+                      'hover:bg-card-hover hover:shadow-card-hover',
+                      'active:shadow-none',
+                    )}
+                  >
+                    <div className="flex min-w-[240px] flex-1 flex-col gap-1">
+                      <div className="flex items-center gap-3">
+                        <StatusPill status={formulario.status} />
+
+                        <h3 className="min-w-0 text-[20px] font-semibold text-ink">
+                          {formulario.titulo}
+                        </h3>
+                      </div>
+
+                      <div className="flex max-w-[342px] flex-col gap-1">
+                        <div className="flex justify-between text-[16px] text-muted">
+                          <span>Taxa de resposta:</span>
+                          <span>
+                            {`${formulario.respostas}/${formulario.total}`}
+                          </span>
+                        </div>
+
+                        <div className="h-3 overflow-hidden rounded-lg bg-white shadow-[inset_0_0_1px_rgba(0,0,0,0.45)]">
+                          <div
+                            className="h-full rounded-lg bg-[#dcd8d0]"
+                            style={{ width: `${percentual}%` }}
+                          />
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="h-3 overflow-hidden rounded-lg bg-white shadow-[inset_0_0_1px_rgba(0,0,0,0.45)]">
-                      <div
-                        className="h-full rounded-lg bg-[#dcd8d0]"
-                        style={{ width: `${percentual}%` }}
+                    <div className="flex flex-wrap items-center gap-x-8 gap-y-2 text-center text-[16px] text-ink">
+                      <div>
+                        <p>Domínio médio</p>
+                        <p>{formulario.dominioMedio != null ? `${formulario.dominioMedio}%` : '—'}</p>
+                      </div>
+
+                      <div>
+                        <p>Maior dificuldade</p>
+                        {formulario.maiorDificuldade ? (
+                          <DifficultyLetter 
+                          letra={formulario.maiorDificuldade} 
+                          className="!font-normal"/>
+                        ) : (
+                          <p>—</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <p>Data de criação</p>
+                        <p>{formulario.data}</p>
+                      </div>
+
+                      <OptionsMenu
+                        label={`Opções do formulário ${formulario.titulo}`}
+                        items={[
+                          {
+                            label: 'Editar',
+                            icon: 'edit',
+                            onClick: () => setFormularioEditando(formulario),
+                          },
+
+                          ...acoesDeStatus(formulario, (status) => executar(() => atualizarFormulario(formulario.id, { status }))),
+
+                          {
+                            label: 'Excluir',
+                            icon: 'delete',
+                            destructive: true,
+                            onClick: () => {
+                              if (window.confirm(`Excluir o formulário "${formulario.titulo}"? As respostas dos alunos também serão apagadas.`)) void removerFormulario(formulario.id)
+                            },
+                          },
+                        ]}
                       />
                     </div>
-                  </div>
-                </div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </>
+      )}
 
-                <div className="flex flex-wrap items-center gap-x-8 gap-y-2 text-center text-[16px] text-ink">
-                  <div>
-                    <p>Domínio médio</p>
-                    <p>{formulario.dominioMedio != null ? `${formulario.dominioMedio}%` : '—'}</p>
-                  </div>
+      {linhas.length === 0 && (
+        <div className="flex min-h-[calc(100vh-320px)] flex-col items-center justify-center gap-4 p-6 text-center">
+          <span className="material-icons-round !text-[56px] text-muted" aria-hidden="true">
+            description
+          </span>
 
-                  <div>
-                    <p>Maior dificuldade</p>
-                    {formulario.maiorDificuldade ? (
-                      <DifficultyLetter 
-                      letra={formulario.maiorDificuldade} 
-                      className="!font-normal"/>
-                    ) : (
-                      <p>—</p>
-                    )}
-                  </div>
+          <div className="flex max-w-[760px] flex-col gap-2">
+            <h2 className="text-[20px] font-semibold text-ink">
+              Esta equipe ainda não possui formulários
+            </h2>
+            <p className="text-[16px] text-muted">
+              Crie o primeiro formulário para avaliar a compreensão dos alunos desta equipe.
+            </p>
+          </div>
 
-                  <div>
-                    <p>Data de criação</p>
-                    <p>{formulario.data}</p>
-                  </div>
-
-                  <OptionsMenu
-                    label={`Opções do formulário ${formulario.titulo}`}
-                    items={[
-                      {
-                        label: 'Editar',
-                        icon: 'edit',
-                        onClick: () => setFormularioEditando(formulario),
-                      },
-
-                      ...acoesDeStatus(formulario, (status) => executar(() => atualizarFormulario(formulario.id, { status }))),
-
-                      {
-                        label: 'Excluir',
-                        icon: 'delete',
-                        destructive: true,
-                        onClick: () => {
-                          if (window.confirm(`Excluir o formulário "${formulario.titulo}"? As respostas dos alunos também serão apagadas.`)) void removerFormulario(formulario.id)
-                        },
-                      },
-                    ]}
-                  />
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+          <ButtonPrimary
+            icon="add"
+            onClick={() => setCriandoFormulario(true)}
+            className="!bg-btn-brown hover:!bg-btn-brown-hover !text-[18px]"
+          >
+            Criar formulário
+          </ButtonPrimary>
+        </div>
       )}
 
       {formularioEditando && (
         <EditarFormularioModal
           formulario={formularioEditando}
           onClose={() => setFormularioEditando(null)}
+        />
+      )}
+
+      {criandoFormulario && (
+        <CriarFormularioModal
+          onClose={() => setCriandoFormulario(false)}
+          equipeIdInicial={equipe.id}
         />
       )}
     </>
@@ -518,7 +603,7 @@ export function EquipeAlunos() {
       </AlunosSecao>
       <AlunosSecao titulo={`Alunos (${alunos.length})`}>
         {alunos.length === 0 ? (
-          <p className="text-[16px] text-muted">Nenhum aluno na equipe ainda. Compartilhe o link de convite acima.</p>
+          <p className="px-3 py-2 text-[16px] text-muted">Nenhum aluno na equipe ainda. Compartilhe o link de convite acima.</p>
         ) : (
           <DataTable
             cabecalhoAlto
