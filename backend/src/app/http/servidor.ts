@@ -225,6 +225,10 @@ export function criarApp({ uc, infra }: Container, opcoes: { exporCaixaDeSaida?:
   const aluno = express.Router()
   aluno.use('/aluno', autenticado, apenas('aluno'))
   aluno.get('/aluno/turmas', rota(async (_req, res) => void res.json(await uc.turmas.listar.executar(atorDe(res)))))
+  aluno.delete('/aluno/turmas/:id', rota(async (req, res) => {
+    await uc.turmas.sairDaEquipe.executar(atorDe(res), param(req, 'id'))
+    res.status(204).end()
+  }))
   aluno.get('/aluno/autoavaliacoes', rota(async (_req, res) => void res.json(await uc.respostas.listar.executar(atorDe(res)))))
   aluno.put('/aluno/autoavaliacoes/:id/respostas/:perguntaId', rota(async (req, res) => {
     const { marcadas } = ESQ.resposta.parse(req.body)

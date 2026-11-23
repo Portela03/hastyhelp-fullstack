@@ -21,7 +21,7 @@ import { EnviarAutoavaliacao } from '../contexts/respostas/application/enviar-au
 import { ListarAutoavaliacoes } from '../contexts/respostas/application/listar-autoavaliacoes.ts'
 import { ModerarObservacao } from '../contexts/respostas/application/moderar-observacao.ts'
 import { SalvarResposta } from '../contexts/respostas/application/salvar-resposta.ts'
-import { GerarLinkDeRedefinicao, RemoverAlunoDaTurma } from '../contexts/turmas/application/alunos-da-turma.ts'
+import { GerarLinkDeRedefinicao, RemoverAlunoDaTurma, SairDaEquipe } from '../contexts/turmas/application/alunos-da-turma.ts'
 import { ConsultarConvite } from '../contexts/turmas/application/consultar-convite.ts'
 import { CriarTurma } from '../contexts/turmas/application/criar-turma.ts'
 import { EditarTurma } from '../contexts/turmas/application/editar-turma.ts'
@@ -57,6 +57,7 @@ export function criarContainer(infra: Infra) {
       listar: new ListarTurmas(deps),
       consultarConvite: new ConsultarConvite(deps),
       removerAluno: new RemoverAlunoDaTurma(deps),
+      sairDaEquipe: new SairDaEquipe(deps),
       gerarLinkDeRedefinicao: new GerarLinkDeRedefinicao(deps),
     },
     formularios: {

@@ -364,7 +364,7 @@ export function DataTable({
             style={{ gridTemplateColumns: grid }}
           >
             {linha.map((cel, j) => (
-              <div key={j} role="cell" className={cx(colunas[j]?.centro && 'text-center')}>
+              <div key={j} role="cell" className={cx(colunas[j]?.centro && 'flex items-center justify-center text-center')}>
                 {cel}
               </div>
             ))}

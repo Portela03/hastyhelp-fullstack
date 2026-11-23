@@ -718,7 +718,7 @@ export function PerfilModal({ onClose }: { onClose: () => void }) {
 }
 
 type ExcluirModalProps = {
-  tipo: 'equipe' | 'formulario' | 'aluno'
+  tipo: 'equipe' | 'formulario' | 'aluno' | 'sairEquipe'
   nome: string
   onClose: () => void
   onConfirmar: () => void
@@ -734,14 +734,19 @@ export function ExcluirModal({
 
   const ehEquipe = tipo === 'equipe'
   const ehAluno = tipo === 'aluno'
+  const ehSairEquipe = tipo === 'sairEquipe'
 
-  const titulo = ehAluno
-    ? 'Remover da equipe'
-    : 'Excluir permanentemente'
+  const titulo = ehSairEquipe
+    ? 'Sair da equipe'
+    : ehAluno
+      ? 'Remover da equipe'
+      : 'Excluir permanentemente'
 
-  const rotuloConfirmacao = ehAluno
-    ? 'Remover aluno'
-    : 'Excluir'
+  const rotuloConfirmacao = ehSairEquipe
+    ? 'Sair da equipe'
+    : ehAluno
+      ? 'Remover aluno'
+      : 'Excluir'
 
   function confirmar(e: FormEvent) {
     e.preventDefault()
@@ -754,14 +759,20 @@ export function ExcluirModal({
   return (
     <Modal
       title={titulo}
-      icon={ehAluno ? 'person' : 'delete'}
+      icon={ehSairEquipe || ehAluno ? 'person' : 'delete'}
       onClose={onClose}
       width={640}
       titleClassName="!text-diff-c !text-[22px] sm:!text-[26px]"
     >
       <form onSubmit={confirmar} className="flex w-full flex-col gap-7">
         <p className="text-center text-[20px] leading-7 text-ink">
-          {ehAluno ? (
+          {ehSairEquipe ? (
+            <>
+              Você está prestes a sair da equipe <strong>{nome}</strong>.
+              <br />
+              Suas respostas e sua participação nesta equipe serão apagadas.
+            </>
+          ) : ehAluno ? (
             <>
               Você está prestes a remover o aluno <strong>{nome}</strong> da equipe.
               <br />

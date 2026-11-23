@@ -10,6 +10,7 @@ import {
   FilterSelect,
   KpiCard,
   Modal,
+  OptionsMenu,
   Panel,
   ProgressBar,
   SearchBox,
@@ -17,6 +18,7 @@ import {
   StatusAlunoPill,
   TeamBadge,
 } from '../components/ui'
+import { ExcluirModal } from '../components/modals'
 import {
   ROTULO_STATUS_ALUNO,
   acertou,
@@ -142,11 +144,12 @@ function useFiltroAutoavaliacoes(base: AutoavaliacaoAluno[]) {
 /* Turmas */
 
 export function AlunoTurmas() {
-  const { autoavaliacoes, equipes: turmasAluno } = useStore()
+  const { autoavaliacoes, equipes: turmasAluno, sairDaEquipe } = useStore()
   const navigate = useNavigate()
   const [busca, setBusca] = useState('')
   const [periodo, setPeriodo] = useState('')
   const [asc, setAsc] = useState(true)
+  const [equipeSaindo, setEquipeSaindo] = useState<Equipe | null>(null)
 
   const turmasVisiveis = turmasAluno
     .filter((t) => !t.oculta)
@@ -199,6 +202,17 @@ export function AlunoTurmas() {
                       <h2 className="min-w-0 flex-1 text-[16px] font-semibold tracking-[-0.64px] text-ink">
                         {t.nome}
                       </h2>
+                      <OptionsMenu
+                        label={`Opções da equipe ${t.nome}`}
+                        items={[
+                          {
+                            label: 'Sair da equipe',
+                            icon: 'logout',
+                            destructive: true,
+                            onClick: () => setEquipeSaindo(t),
+                          },
+                        ]}
+                      />
                     </div>
                     <p className="text-[16px] leading-4 text-card-sec">
                       Prof. {t.docente}
@@ -252,6 +266,17 @@ export function AlunoTurmas() {
                       <h2 className="min-w-0 flex-1 text-[16px] font-semibold tracking-[-0.64px] text-ink">
                         {t.nome}
                       </h2>
+                      <OptionsMenu
+                        label={`Opções da equipe ${t.nome}`}
+                        items={[
+                          {
+                            label: 'Sair da equipe',
+                            icon: 'logout',
+                            destructive: true,
+                            onClick: () => setEquipeSaindo(t),
+                          },
+                        ]}
+                      />
                     </div>
                     <p className="text-[16px] leading-4 text-card-sec">
                       Prof. {t.docente}
@@ -279,6 +304,16 @@ export function AlunoTurmas() {
           </div>
         </Section>
       )}
+      {equipeSaindo && (
+        <ExcluirModal
+          tipo="sairEquipe"
+          nome={equipeSaindo.nome}
+          onClose={() => setEquipeSaindo(null)}
+          onConfirmar={() => {
+            void sairDaEquipe(equipeSaindo.id).then(() => setEquipeSaindo(null))
+          }}
+        />
+      )}
     </AppShell>
   )
 }
@@ -287,15 +322,32 @@ export function AlunoTurmas() {
 
 export function AlunoTurmaDetalhe() {
   const { id } = useParams()
-  const { autoavaliacoes, equipes: turmasAluno } = useStore()
+  const { autoavaliacoes, equipes: turmasAluno, sairDaEquipe } = useStore()
+  const navigate = useNavigate()
   const turmaDe = (id: string): Equipe | undefined => turmasAluno.find((t) => t.id === id)
   const turma = turmaDe(id ?? '')
+  const [equipeSaindo, setEquipeSaindo] = useState(false)
   if (!turma) return <Navigate to="/aluno/turmas" replace />
   const minhas = autoavaliacoes.filter((a) => a.turmaId === turma.id)
   const est = estatisticas(minhas)
   const base = `/aluno/turmas/${turma.id}`
   return (
-    <AppShell voltar={{ para: '/aluno/turmas', rotulo: 'Equipes' }}>
+    <AppShell
+      voltar={{ para: '/aluno/turmas', rotulo: 'Equipes' }}
+      action={
+        <OptionsMenu
+          label={`Opções da equipe ${turma.nome}`}
+          items={[
+            {
+              label: 'Sair da equipe',
+              icon: 'logout',
+              destructive: true,
+              onClick: () => setEquipeSaindo(true),
+            },
+          ]}
+        />
+      }
+    >
       <Banner
         titulo={turma.nome}
         leading={<TeamBadge sigla={turma.sigla} cor={turma.cor} size={75} fontSize={30} />}
@@ -311,6 +363,19 @@ export function AlunoTurmaDetalhe() {
         ]}
       />
       <Outlet context={turma} />
+      {equipeSaindo && (
+        <ExcluirModal
+          tipo="sairEquipe"
+          nome={turma.nome}
+          onClose={() => setEquipeSaindo(false)}
+          onConfirmar={() => {
+            void sairDaEquipe(turma.id).then(() => {
+              setEquipeSaindo(false)
+              navigate('/aluno/turmas', { replace: true })
+            })
+          }}
+        />
+      )}
     </AppShell>
   )
 }

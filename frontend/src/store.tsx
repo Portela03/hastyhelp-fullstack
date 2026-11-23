@@ -78,6 +78,7 @@ interface Store {
   adicionarEquipe: (dados: DadosEquipe) => Promise<Equipe>
   atualizarEquipe: (id: string, dados: Partial<DadosEquipe>) => Promise<void>
   removerEquipe: (id: string) => Promise<void>
+  sairDaEquipe: (id: string) => Promise<void>
   adicionarFormulario: (dados: DadosFormulario) => Promise<void>
   atualizarFormulario: (id: string, dados: EdicaoFormulario) => Promise<void>
   removerFormulario: (id: string) => Promise<void>
@@ -274,6 +275,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [recarregar],
   )
 
+  const sairDaEquipe = useCallback(
+    async (id: string) => {
+      await api('DELETE', `/aluno/turmas/${id}`)
+      await recarregar()
+    },
+    [recarregar],
+  )
+
   const adicionarFormulario = useCallback(
     async (dados: DadosFormulario) => {
       await api('POST', '/formularios', { ...dados, perguntas: dados.perguntas.map(perguntaParaApi) })
@@ -366,6 +375,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       adicionarEquipe,
       atualizarEquipe: (id, dados) => comAviso(() => atualizarEquipe(id, dados)),
       removerEquipe: (id) => comAviso(() => removerEquipe(id)),
+      sairDaEquipe: (id) => comAviso(() => sairDaEquipe(id)),
       adicionarFormulario,
       atualizarFormulario,
       removerFormulario: (id) => comAviso(() => removerFormulario(id)),
@@ -376,7 +386,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       pesquisas,
       registrarPesquisa,
     }),
-    [sessao, carregando, aviso, entrar, cadastrar, sair, recarregar, equipes, formularios, autoavaliacoes, adicionarEquipe, atualizarEquipe, removerEquipe, adicionarFormulario, atualizarFormulario, removerFormulario, comAviso, salvarResposta, enviarAutoavaliacao, preferencias, atualizarPreferencias, pesquisas, registrarPesquisa],
+    [sessao, carregando, aviso, entrar, cadastrar, sair, recarregar, equipes, formularios, autoavaliacoes, adicionarEquipe, atualizarEquipe, removerEquipe, sairDaEquipe, adicionarFormulario, atualizarFormulario, removerFormulario, comAviso, salvarResposta, enviarAutoavaliacao, preferencias, atualizarPreferencias, pesquisas, registrarPesquisa],
   )
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
 }
