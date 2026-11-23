@@ -44,6 +44,8 @@ type OptionsMenuProps = {
 export function OptionsMenu({ label, items, className }: OptionsMenuProps) {
   const [aberto, setAberto] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const botaoRef = useRef<HTMLButtonElement>(null)
+  const [menuPosicao, setMenuPosicao] = useState({ top: 0, left: 0 })
 
   useEffect(() => {
     if (!aberto) return
@@ -77,24 +79,46 @@ export function OptionsMenu({ label, items, className }: OptionsMenuProps) {
   return (
     <div ref={menuRef} className={cx('relative shrink-0', className)}>
       <button
+        ref={botaoRef}
         type="button"
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={aberto}
         onClick={(event) => {
           event.stopPropagation()
+
+          if (!aberto && botaoRef.current) {
+            const rect = botaoRef.current.getBoundingClientRect()
+            const menuHeight = items.length * 44 + 16
+            const menuWidth = 200
+            const abrirParaCima =
+              window.innerHeight - rect.bottom < menuHeight
+
+            setMenuPosicao({
+              top: abrirParaCima
+                ? rect.top - menuHeight - 8
+                : rect.bottom + 8,
+              left: Math.min(
+                Math.max(rect.right - menuWidth, 8),
+                window.innerWidth - menuWidth - 8,
+              ),
+            })
+          }
+
           setAberto((valor) => !valor)
         }}
-        className="flex cursor-pointer items-center justify-center rounded-full px-1 text-[20px] leading-none text-ink transition hover:bg-black/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        className="flex cursor-pointer items-center justify-center rounded-full px-1 text-[20px] leading-none text-ink transition hover:bg-black/5"
       >
         <Icon name="more_horiz" />
       </button>
 
-      {aberto && (
+      {aberto && 
+        createPortal(
         <div
           role="menu"
           aria-label={label}
-          className="absolute right-0 top-full z-30 mt-2 min-w-[200px] overflow-hidden rounded-xl border border-line-input bg-white py-1 shadow-[0_6px_18px_rgba(51,51,51,0.22)]"
+          className="fixed z-[9999] max-h-[calc(100vh-16px)] min-w-[200px] overflow-hidden rounded-xl border border-line-input bg-white py-1 shadow-[0_6px_18px_rgba(51,51,51,0.22)]"
+          style={menuPosicao}          
           onClick={(event) => event.stopPropagation()}
         >
           {items.map((item, index) => (
@@ -120,7 +144,8 @@ export function OptionsMenu({ label, items, className }: OptionsMenuProps) {
               </button>
             </div>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )
@@ -159,6 +184,7 @@ export function ButtonBrown({ children, className, ...rest }: BtnProps) {
         'transition duration-100',
         'hover:bg-btn-brown-hover hover:shadow-btn-hover',
         'active:shadow-none',
+        'disabled:cursor-not-allowed disabled:border-transparent disabled:bg-[#eeeeee] disabled:text-[#888888] disabled:shadow-none disabled:hover:bg-[#eeeeee]',
         className,
       )}
     >

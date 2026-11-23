@@ -10,6 +10,7 @@ import {
   FilterSelect,
   KpiCard,
   Modal,
+  OptionsMenu,
   Panel,
   ProgressBar,
   SearchBox,
@@ -17,6 +18,7 @@ import {
   StatusAlunoPill,
   TeamBadge,
 } from '../components/ui'
+import { ExcluirModal } from '../components/modals'
 import {
   ROTULO_STATUS_ALUNO,
   acertou,
@@ -88,7 +90,7 @@ function AutoavaliacaoRow({ a, mostrarTurma }: { a: AutoavaliacaoAluno; mostrarT
       aria-label={`Abrir autoavaliação ${a.titulo}`}
       onClick={abrir}
       onKeyDown={(e) => e.key === 'Enter' && abrir()}
-      className="flex cursor-pointer items-center gap-3 rounded-lg border border-line-input bg-white p-3"
+      className="flex cursor-pointer items-center gap-3 rounded-lg border border-line-input bg-white p-3 transition duration-100 hover:bg-card-hover hover:shadow-card-hover active:shadow-none"
     >
       {turma && <TeamBadge sigla={turma.sigla} cor={turma.cor} size={68} fontSize={32} />}
       <div className="flex min-w-0 flex-1 items-stretch justify-between gap-3">
@@ -142,59 +144,95 @@ function useFiltroAutoavaliacoes(base: AutoavaliacaoAluno[]) {
 /* Turmas */
 
 export function AlunoTurmas() {
-  const { autoavaliacoes, equipes: turmasAluno } = useStore()
+  const { autoavaliacoes, equipes: turmasAluno, sairDaEquipe } = useStore()
   const navigate = useNavigate()
   const [busca, setBusca] = useState('')
   const [periodo, setPeriodo] = useState('')
   const [asc, setAsc] = useState(true)
-  const lista = turmasAluno.filter((t) => t.nome.toLowerCase().includes(busca.toLowerCase()))
+  const [equipeSaindo, setEquipeSaindo] = useState<Equipe | null>(null)
+
+  const turmasVisiveis = turmasAluno
+    .filter((t) => !t.oculta)
+    .filter((t) => t.nome.toLowerCase().includes(busca.toLowerCase()))
+    .filter((t) => !periodo || t.periodo === periodo)
+    .sort((a, b) => (asc ? 1 : -1) * a.nome.localeCompare(b.nome, 'pt-BR'))
+
+  const turmasOcultas = turmasAluno
+    .filter((t) => t.oculta)
+    .filter((t) => t.nome.toLowerCase().includes(busca.toLowerCase()))
     .filter((t) => !periodo || t.periodo === periodo)
     .sort((a, b) => (asc ? 1 : -1) * a.nome.localeCompare(b.nome, 'pt-BR'))
 
   return (
     <AppShell>
-      <Banner titulo="Minhas Turmas" subtitulo="Bem-vindo(a)! Aqui você acompanha suas turmas e as autoavaliações que precisam da sua resposta." />
+      <Banner titulo="Minhas Equipes" subtitulo="Bem-vindo(a)! Aqui você acompanha suas equipes e as autoavaliações que precisam da sua resposta." />
       <Toolbar>
         <div className="flex flex-wrap items-center gap-3">
-          <SearchBox value={busca} onChange={setBusca} placeholder="Buscar turmas..." />
+          <SearchBox value={busca} onChange={setBusca} placeholder="Buscar equipes..." />
           <FilterSelect label="Período" value={periodo} onChange={setPeriodo} options={[...PERIODOS]} />
         </div>
         <SortButton icon={sortIcon} label={asc ? 'Alfabeticamente' : 'Alfabeticamente (Z-A)'} onClick={() => setAsc((v) => !v)} />
       </Toolbar>
-      <Section titulo="Turmas">
-        {lista.length === 0 ? (
-          <p className="text-[16px] text-muted">Nenhuma turma encontrada.</p>
+      <Section titulo="Equipes">
+        {turmasVisiveis.length === 0 ? (
+          <p className="text-[16px] text-muted">
+            Nenhuma equipe encontrada.
+          </p>
         ) : (
           <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2 xl:grid-cols-3">
-            {lista.map((t) => {
-              const est = estatisticas(autoavaliacoes.filter((a) => a.turmaId === t.id))
+            {turmasVisiveis.map((t) => {
+              const est = estatisticas(
+                autoavaliacoes.filter((a) => a.turmaId === t.id),
+              )
               const abrir = () => navigate(`/aluno/turmas/${t.id}`)
+
               return (
                 <article
                   key={t.id}
                   role="link"
                   tabIndex={0}
-                  aria-label={`Abrir turma ${t.nome}`}
+                  aria-label={`Abrir equipe ${t.nome}`}
                   onClick={abrir}
                   onKeyDown={(e) => e.key === 'Enter' && abrir()}
-                  className="flex cursor-pointer flex-col gap-5 self-start rounded-lg border border-card-line bg-white p-3 drop-shadow-[0.5px_0.5px_0_#b7b7b7]"
+                  className="flex cursor-pointer flex-col gap-5 self-start rounded-lg border border-card-line bg-white p-3 transition duration-100 drop-shadow-[0.5px_0.5px_0_#b7b7b7] hover:bg-card-hover hover:shadow-card-hover active:shadow-none"
                 >
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-2.5">
                       <TeamBadge sigla={t.sigla} cor={t.cor} size={60} fontSize={30} />
-                      <h2 className="min-w-0 flex-1 text-[16px] font-semibold tracking-[-0.64px] text-ink">{t.nome}</h2>
+                      <h2 className="min-w-0 flex-1 text-[16px] font-semibold tracking-[-0.64px] text-ink">
+                        {t.nome}
+                      </h2>
+                      <OptionsMenu
+                        label={`Opções da equipe ${t.nome}`}
+                        items={[
+                          {
+                            label: 'Sair da equipe',
+                            icon: 'logout',
+                            destructive: true,
+                            onClick: () => setEquipeSaindo(t),
+                          },
+                        ]}
+                      />
                     </div>
-                    <p className="text-[16px] leading-4 text-card-sec">{`Prof. ${t.docente}`}</p>
                     <p className="text-[16px] leading-4 text-card-sec">
-                      {est.abertas === 0 ? 'Nenhuma autoavaliação pendente' : `${est.abertas} autoavaliação(ões) para responder`}
+                      Prof. {t.docente}
+                    </p>
+                    <p className="text-[16px] leading-4 text-card-sec">
+                      {est.abertas === 0
+                        ? 'Nenhuma autoavaliação pendente'
+                        : `${est.abertas} autoavaliação(ões) para responder`}
                     </p>
                   </div>
+
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between text-[16px] leading-4 text-card-sec">
                       <span>Minha participação:</span>
                       <span>{est.participacao}%</span>
                     </div>
-                    <ProgressBar value={est.participacao} label="Minha participação" />
+                    <ProgressBar
+                      value={est.participacao}
+                      label="Minha participação"
+                    />
                   </div>
                 </article>
               )
@@ -202,6 +240,80 @@ export function AlunoTurmas() {
           </div>
         )}
       </Section>
+
+      {turmasOcultas.length > 0 && (
+        <Section titulo="Equipes ocultas" inicialmenteAberta={false}>
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2 xl:grid-cols-3">
+            {turmasOcultas.map((t) => {
+              const est = estatisticas(
+                autoavaliacoes.filter((a) => a.turmaId === t.id),
+              )
+              const abrir = () => navigate(`/aluno/turmas/${t.id}`)
+
+              return (
+                <article
+                  key={t.id}
+                  role="link"
+                  tabIndex={0}
+                  aria-label={`Abrir equipe ${t.nome}`}
+                  onClick={abrir}
+                  onKeyDown={(e) => e.key === 'Enter' && abrir()}
+                  className="flex cursor-pointer flex-col gap-5 self-start rounded-lg border border-card-line bg-white p-3 transition duration-100 drop-shadow-[0.5px_0.5px_0_#b7b7b7] hover:bg-card-hover hover:shadow-card-hover active:shadow-none"
+                >
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <TeamBadge sigla={t.sigla} cor={t.cor} size={60} fontSize={30} />
+                      <h2 className="min-w-0 flex-1 text-[16px] font-semibold tracking-[-0.64px] text-ink">
+                        {t.nome}
+                      </h2>
+                      <OptionsMenu
+                        label={`Opções da equipe ${t.nome}`}
+                        items={[
+                          {
+                            label: 'Sair da equipe',
+                            icon: 'logout',
+                            destructive: true,
+                            onClick: () => setEquipeSaindo(t),
+                          },
+                        ]}
+                      />
+                    </div>
+                    <p className="text-[16px] leading-4 text-card-sec">
+                      Prof. {t.docente}
+                    </p>
+                    <p className="text-[16px] leading-4 text-card-sec">
+                      {est.abertas === 0
+                        ? 'Nenhuma autoavaliação pendente'
+                        : `${est.abertas} autoavaliação(ões) para responder`}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between text-[16px] leading-4 text-card-sec">
+                      <span>Minha participação:</span>
+                      <span>{est.participacao}%</span>
+                    </div>
+                    <ProgressBar
+                      value={est.participacao}
+                      label="Minha participação"
+                    />
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        </Section>
+      )}
+      {equipeSaindo && (
+        <ExcluirModal
+          tipo="sairEquipe"
+          nome={equipeSaindo.nome}
+          onClose={() => setEquipeSaindo(null)}
+          onConfirmar={() => {
+            void sairDaEquipe(equipeSaindo.id).then(() => setEquipeSaindo(null))
+          }}
+        />
+      )}
     </AppShell>
   )
 }
@@ -210,15 +322,32 @@ export function AlunoTurmas() {
 
 export function AlunoTurmaDetalhe() {
   const { id } = useParams()
-  const { autoavaliacoes, equipes: turmasAluno } = useStore()
+  const { autoavaliacoes, equipes: turmasAluno, sairDaEquipe } = useStore()
+  const navigate = useNavigate()
   const turmaDe = (id: string): Equipe | undefined => turmasAluno.find((t) => t.id === id)
   const turma = turmaDe(id ?? '')
+  const [equipeSaindo, setEquipeSaindo] = useState(false)
   if (!turma) return <Navigate to="/aluno/turmas" replace />
   const minhas = autoavaliacoes.filter((a) => a.turmaId === turma.id)
   const est = estatisticas(minhas)
   const base = `/aluno/turmas/${turma.id}`
   return (
-    <AppShell voltar={{ para: '/aluno/turmas', rotulo: 'Turmas' }}>
+    <AppShell
+      voltar={{ para: '/aluno/turmas', rotulo: 'Equipes' }}
+      action={
+        <OptionsMenu
+          label={`Opções da equipe ${turma.nome}`}
+          items={[
+            {
+              label: 'Sair da equipe',
+              icon: 'logout',
+              destructive: true,
+              onClick: () => setEquipeSaindo(true),
+            },
+          ]}
+        />
+      }
+    >
       <Banner
         titulo={turma.nome}
         leading={<TeamBadge sigla={turma.sigla} cor={turma.cor} size={75} fontSize={30} />}
@@ -234,6 +363,19 @@ export function AlunoTurmaDetalhe() {
         ]}
       />
       <Outlet context={turma} />
+      {equipeSaindo && (
+        <ExcluirModal
+          tipo="sairEquipe"
+          nome={turma.nome}
+          onClose={() => setEquipeSaindo(false)}
+          onConfirmar={() => {
+            void sairDaEquipe(turma.id).then(() => {
+              setEquipeSaindo(false)
+              navigate('/aluno/turmas', { replace: true })
+            })
+          }}
+        />
+      )}
     </AppShell>
   )
 }
@@ -307,7 +449,7 @@ export function AlunoTurmaResumo() {
     <section className="flex flex-col gap-2 rounded-xl border border-line bg-white p-[22px]">
       <header className="flex flex-col gap-1">
         <h2 className="text-[24px] font-bold text-ink">Meu resumo</h2>
-        <p className="text-[13px] text-muted">Seu desempenho, sua evolução e os pontos que merecem atenção nesta turma.</p>
+        <p className="text-[13px] text-muted">Seu desempenho, sua evolução e os pontos que merecem atenção nesta equipe.</p>
       </header>
       <div className="flex flex-wrap gap-3.5">
         <KpiCard className="min-w-[200px] gap-1" titulo="Participação" valor={`${est.participacao}%`} detalhe={`${est.respondidas} de ${est.total} respondidas`} />
@@ -327,7 +469,7 @@ export function AlunoTurmaResumo() {
             <p className="text-[13px] text-muted">Nota em cada autoavaliação enviada</p>
           </header>
           <ColunasNotas
-            rotuloAria="Evolução das minhas notas nesta turma"
+            rotuloAria="Evolução das minhas notas nesta equipe"
             itens={est.evolucao.flatMap((a, i, l) => (a.nota === undefined ? [] : [{ rotulo: a.titulo, valor: a.nota, destaque: i === l.length - 1 }]))}
           />
         </section>
@@ -346,11 +488,11 @@ export function AlunoAutoavaliacoes() {
   const f = useFiltroAutoavaliacoes(autoavaliacoes)
   return (
     <AppShell>
-      <Banner variante="lista" titulo="Autoavaliações" subtitulo="Aqui você responde às autoavaliações das suas turmas e acompanha as que já enviou." />
+      <Banner variante="lista" titulo="Autoavaliações" subtitulo="Aqui você responde às autoavaliações das suas equipes e acompanha as que já enviou." />
       <Toolbar>
         <div className="flex flex-wrap items-center gap-3">
           <SearchBox value={f.busca} onChange={f.setBusca} placeholder="Buscar autoavaliações..." />
-          <FilterSelect label="Turma" all="Todas" value={f.turma} onChange={f.setTurma} options={turmasAluno.map((t) => t.nome)} />
+          <FilterSelect label="Equipe" all="Todas" value={f.turma} onChange={f.setTurma} options={turmasAluno.map((t) => t.nome)} />
           <FilterSelect label="Status" value={f.status} onChange={f.setStatus} options={Object.values(ROTULO_STATUS_ALUNO)} />
         </div>
         <SortButton icon={sortIcon} label="Prazo" onClick={() => f.setAsc((v) => !v)} />
@@ -418,7 +560,7 @@ export function AlunoRespostas() {
         <p className="text-[16px] text-ink">
           {`O prazo desta autoavaliação terminou${a.prazo ? ` em ${a.prazo}` : ''} e ela ficou sem resposta.`}
         </p>
-        <p className="text-[14px] text-muted">Se precisar responder, fale com o professor da turma.</p>
+        <p className="text-[14px] text-muted">Se precisar responder, fale com o professor da equipe.</p>
       </div>
     )
   }
@@ -577,7 +719,7 @@ export function AlunoResultado() {
           titulo="Evolução"
           valor={variacao === undefined ? '—' : `${variacao > 0 ? '+' : ''}${formatarNota(variacao)}`}
           destaque={variacao !== undefined && variacao > 0}
-          detalhe={anterior ? `Desde "${anterior.titulo}"` : 'Primeira autoavaliação da turma'}
+          detalhe={anterior ? `Desde "${anterior.titulo}"` : 'Primeira autoavaliação da equipe'}
         />
       </div>
       {a.observacao && (
@@ -596,11 +738,11 @@ export function AlunoResultado() {
       )}
       <section className="flex flex-col gap-3 rounded-xl border border-line bg-panel p-[18px]">
         <header className="flex flex-col gap-1">
-          <h3 className="text-[19px] font-bold text-ink">Minha evolução nesta turma</h3>
+          <h3 className="text-[19px] font-bold text-ink">Minha evolução nesta equipe</h3>
           <p className="text-[13px] text-muted">Nota em cada autoavaliação enviada</p>
         </header>
         <ColunasNotas
-          rotuloAria="Evolução das minhas notas nesta turma"
+          rotuloAria="Evolução das minhas notas nesta equipe"
           itens={daTurma.flatMap((x) => (x.nota === undefined ? [] : [{ rotulo: x.titulo, valor: x.nota, destaque: x.id === a.id }]))}
         />
       </section>
@@ -626,22 +768,22 @@ export function AlunoDesempenho() {
   })
   return (
     <AppShell>
-      <Banner variante="lista" titulo="Meu desempenho" subtitulo="Aqui você acompanha suas notas e sua evolução em todas as suas turmas, podendo escolher quais dados ver.">
+      <Banner variante="lista" titulo="Meu desempenho" subtitulo="Aqui você acompanha suas notas e sua evolução em todas as suas equipes, podendo escolher quais dados ver.">
         <div className="flex flex-col items-start gap-1 sm:items-end">
           <span className="text-[18px]">Visão atual</span>
-          <strong className="text-[22px] font-bold">{turma || 'Todas as turmas'}</strong>
+          <strong className="text-[22px] font-bold">{turma || 'Todas as equipes'}</strong>
         </div>
       </Banner>
       <Toolbar>
         <div className="flex flex-wrap items-center gap-3">
           <FilterSelect label="Período" value={periodo} onChange={setPeriodo} options={[...PERIODOS]} />
-          <FilterSelect label="Turma" all="Todas" value={turma} onChange={setTurma} options={turmasAluno.map((t) => t.nome)} />
+          <FilterSelect label="Equipe" all="Todas" value={turma} onChange={setTurma} options={turmasAluno.map((t) => t.nome)} />
         </div>
       </Toolbar>
       <section className="flex flex-col gap-[18px] rounded-xl border border-line bg-white p-5">
         <header className="flex flex-col gap-[3px]">
           <h2 className="text-[22px] font-bold text-ink">Visão geral</h2>
-          <p className="text-[13px] text-muted">{`Consolidado das suas turmas · semestre ${periodo || '—'}`}</p>
+          <p className="text-[13px] text-muted">{`Consolidado das suas equipes · semestre ${periodo || '—'}`}</p>
         </header>
         <div className="flex flex-wrap gap-3.5">
           <KpiCard className="min-w-[200px] gap-[7px]" titulo="Nota média" valor={est.notaMedia === undefined ? '—' : `${formatarNota(est.notaMedia)}/10`} destaque detalhe="Autoavaliações enviadas" detalheTamanho={13} />
@@ -658,7 +800,7 @@ export function AlunoDesempenho() {
         <div className="flex flex-col gap-[18px] lg:flex-row">
           <section className="flex min-w-0 flex-1 flex-col gap-3.5 rounded-xl border border-line bg-panel p-[18px]">
             <header className="flex flex-col gap-[3px]">
-              <h3 className="text-[18px] font-bold text-ink">Desempenho por turma</h3>
+              <h3 className="text-[18px] font-bold text-ink">Desempenho por equipe</h3>
               <p className="text-[13px] text-muted">Sua nota média nas autoavaliações enviadas</p>
             </header>
             <ul className="flex flex-col gap-3">

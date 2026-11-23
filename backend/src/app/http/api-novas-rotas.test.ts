@@ -140,6 +140,17 @@ describe('API — notificações, alunos e observações', () => {
     await api.delete(`/api/turmas/${turma.id}/alunos/${sarah.id}`).set('Authorization', prof.token).expect(404)
   })
 
+  it('aluno sai da própria equipe e perde a matrícula e os envios', async () => {
+    const { api, turma, sarah, james, responder } = await cenario()
+    await responder(sarah, 'Gostei')
+
+    await api.delete(`/api/aluno/turmas/${turma.id}`).set('Authorization', sarah.token).expect(204)
+    expect((await api.get('/api/aluno/turmas').set('Authorization', sarah.token)).body).toEqual([])
+    expect((await api.get('/api/aluno/turmas').set('Authorization', james.token)).body).toHaveLength(1)
+
+    await api.delete(`/api/aluno/turmas/${turma.id}`).set('Authorization', sarah.token).expect(404)
+  })
+
   it('R-95/R-96 professor responde e oculta a observação; o aluno vê a resposta', async () => {
     const { api, prof, sarah, form, responder } = await cenario()
     await responder(sarah, 'Mais exemplos, por favor')

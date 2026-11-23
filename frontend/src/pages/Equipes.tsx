@@ -5,7 +5,7 @@ import dotI from '../assets/figma/dot-i.svg'
 import dotP from '../assets/figma/dot-p.svg'
 import sortIcon from '../assets/figma/sort.svg'
 import { AppShell, Banner, BannerStat, DataTable, Section, TabBar, Toolbar } from '../components/layout'
-import { CriarEquipeModal, EditarEquipeModal, CriarFormularioModal, EditarFormularioModal } from '../components/modals'
+import { CriarEquipeModal, EditarEquipeModal, CriarFormularioModal, EditarFormularioModal, ExcluirModal } from '../components/modals'
 import { LinkDeRedefinicaoModal, RespostasDoAlunoModal } from '../components/modals-alunos'
 import { Avatar, ButtonPrimary, DifficultyLetter, FilterSelect, KpiCard, Panel, ProgressBar, SearchBox, StatusPill, SortButton, TeamBadge, cx, OptionsMenu } from '../components/ui'
 import { api } from '../api/client'
@@ -24,66 +24,79 @@ type TeamCardProps = {
 function TeamCard({ equipe, onEditar, onAlternarVisibilidade }: TeamCardProps) {
   const navigate = useNavigate()
   const { removerEquipe } = useStore()
+  const [equipeExcluindo, setEquipeExcluindo] = useState<Equipe | null>(null)
   const abrir = () => navigate(`/equipes/${equipe.id}`)
   return (
-    <article
-      role="link"
-      tabIndex={0}
-      aria-label={`Abrir equipe ${equipe.nome}`}
-      onClick={abrir}
-      onKeyDown={(e) => e.key === 'Enter' && abrir()}
-      className={cx(
-        "team-card flex cursor-pointer flex-col gap-5 self-start rounded-lg border border-card-line bg-white p-3 drop-shadow-card",
-        "transition duration-100",
-        "hover:bg-card-hover hover:shadow-card-hover",
-        "active:shadow-none"
-      )}
-    >
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2.5">
-          <span className="equipe-team-badge">
-            <TeamBadge
-              sigla={equipe.sigla}
-              cor={equipe.cor}
-              size={68}
-              fontSize={32}
-            />
-          </span>
-          <h2 className="min-w-0 flex-1 text-[16px] font-semibold tracking-[-0.64px] text-ink">{equipe.nome}</h2>
-          <OptionsMenu
-            label={`Opções da equipe ${equipe.nome}`}
-            items={[
-              {
-                label: 'Editar',
-                icon: 'edit',
-                onClick: () => onEditar(equipe),
-              },
-              {
-                label: equipe.oculta ? 'Exibir' : 'Ocultar',
-                icon: equipe.oculta ? 'visibility' : 'visibility_off',
-                onClick: () => onAlternarVisibilidade(equipe),
-              },
-              {
-                label: 'Excluir',
-                icon: 'delete',
-                destructive: true,
-                onClick: () => {
-                  if (window.confirm(`Excluir a equipe "${equipe.nome}"? Formulários e respostas dela serão apagados.`)) void removerEquipe(equipe.id)
+    <>
+      <article
+        role="link"
+        tabIndex={0}
+        aria-label={`Abrir equipe ${equipe.nome}`}
+        onClick={abrir}
+        onKeyDown={(e) => e.key === 'Enter' && abrir()}
+        className={cx(
+          "team-card flex cursor-pointer flex-col gap-5 self-start rounded-lg border border-card-line bg-white p-3 drop-shadow-card",
+          "transition duration-100",
+          "hover:bg-card-hover hover:shadow-card-hover",
+          "active:shadow-none"
+        )}
+      >
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2.5">
+            <span className="equipe-team-badge">
+              <TeamBadge
+                sigla={equipe.sigla}
+                cor={equipe.cor}
+                size={68}
+                fontSize={32}
+              />
+            </span>
+            <h2 className="min-w-0 flex-1 text-[16px] font-semibold tracking-[-0.64px] text-ink">{equipe.nome}</h2>
+            <OptionsMenu
+              label={`Opções da equipe ${equipe.nome}`}
+              items={[
+                {
+                  label: 'Editar',
+                  icon: 'edit',
+                  onClick: () => onEditar(equipe),
                 },
-              },
-            ]}
-          />
+                {
+                  label: equipe.oculta ? 'Exibir' : 'Ocultar',
+                  icon: equipe.oculta ? 'visibility' : 'visibility_off',
+                  onClick: () => onAlternarVisibilidade(equipe),
+                },
+                {
+                  label: 'Excluir',
+                  icon: 'delete',
+                  destructive: true,
+                  onClick: () => setEquipeExcluindo(equipe),
+                },
+              ]}
+            />
+          </div>
+          <p className="text-[16px] leading-4 text-card-sec">{`${equipe.totalAlunos} Alunos • ${equipe.ultimoFormulario}`}</p>
         </div>
-        <p className="text-[16px] leading-4 text-card-sec">{`${equipe.totalAlunos} Alunos • ${equipe.ultimoFormulario}`}</p>
-      </div>
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between text-[16px] leading-4 text-card-sec">
-          <span>Taxa de resposta:</span>
-          <span>{equipe.taxaResposta}%</span>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between text-[16px] leading-4 text-card-sec">
+            <span>Taxa de resposta:</span>
+            <span>{equipe.taxaResposta}%</span>
+          </div>
+          <ProgressBar value={equipe.taxaResposta} label="Taxa de resposta" />
         </div>
-        <ProgressBar value={equipe.taxaResposta} label="Taxa de resposta" />
-      </div>
-    </article>
+      </article>
+
+      {equipeExcluindo && (
+        <ExcluirModal
+          tipo="equipe"
+          nome={equipeExcluindo.nome}
+          onClose={() => setEquipeExcluindo(null)}
+          onConfirmar={() => {
+            void removerEquipe(equipeExcluindo.id)
+            setEquipeExcluindo(null)
+          }}
+        />
+      )}
+    </>
   )
 }
 
@@ -222,6 +235,7 @@ export function EquipeDetalhe() {
   const navigate = useNavigate()
   const equipe = equipes.find((e) => e.id === id)
   const [editar, setEditar] = useState(false)
+  const [equipeExcluindo, setEquipeExcluindo] = useState<Equipe | null>(null)
   if (!equipe) return <Navigate to="/equipes" replace />
 
   const base = `/equipes/${equipe.id}`
@@ -251,11 +265,7 @@ export function EquipeDetalhe() {
                 label: 'Excluir equipe',
                 icon: 'delete',
                 destructive: true,
-                onClick: async () => {
-                  if (!window.confirm(`Excluir a equipe "${equipe.nome}"? Formulários e respostas dela serão apagados.`)) return
-                  await removerEquipe(equipe.id)
-                  navigate('/equipes', { replace: true })
-                },
+                onClick: () => setEquipeExcluindo(equipe),
               },
             ]}
           />
@@ -279,6 +289,20 @@ export function EquipeDetalhe() {
       />
       <Outlet context={equipe} />
       {editar && <EditarEquipeModal equipe={equipe} onClose={() => setEditar(false)} />}
+
+      {equipeExcluindo && (
+        <ExcluirModal
+          tipo="equipe"
+          nome={equipeExcluindo.nome}
+          onClose={() => setEquipeExcluindo(null)}
+          onConfirmar={() => {
+            void removerEquipe(equipeExcluindo.id).then(() => {
+              setEquipeExcluindo(null)
+              navigate('/equipes', { replace: true })
+            })
+          }}
+        />
+      )}
     </AppShell>
   )
 }
@@ -313,7 +337,7 @@ export function EquipeFormularios() {
   const [asc, setAsc] = useState(false)
   const [formularioEditando, setFormularioEditando] = useState<Formulario | null>(null)
   const [criandoFormulario, setCriandoFormulario] = useState(false)
-
+  const [formularioExcluindo, setFormularioExcluindo] = useState<Formulario | null>(null)
 
   const linhas = formularios
     .filter((formulario) => formulario.equipeId === equipe.id)
@@ -456,9 +480,7 @@ export function EquipeFormularios() {
                             label: 'Excluir',
                             icon: 'delete',
                             destructive: true,
-                            onClick: () => {
-                              if (window.confirm(`Excluir o formulário "${formulario.titulo}"? As respostas dos alunos também serão apagadas.`)) void removerFormulario(formulario.id)
-                            },
+                            onClick: () => setFormularioExcluindo(formulario),
                           },
                         ]}
                       />
@@ -507,6 +529,18 @@ export function EquipeFormularios() {
         <CriarFormularioModal
           onClose={() => setCriandoFormulario(false)}
           equipeIdInicial={equipe.id}
+        />
+      )}
+
+      {formularioExcluindo && (
+        <ExcluirModal
+          tipo="formulario"
+          nome={formularioExcluindo.titulo}
+          onClose={() => setFormularioExcluindo(null)}
+          onConfirmar={() => {
+            void removerFormulario(formularioExcluindo.id)
+            setFormularioExcluindo(null)
+          }}
         />
       )}
     </>
@@ -572,6 +606,7 @@ export function EquipeAlunos() {
   const { dados, erro, recarregar: recarregarAlunos } = useApi<AlunosTurmaDTO>(`/turmas/${equipe.id}/alunos`, equipe)
   const [respostasDe, setRespostasDe] = useState<{ id: string; nome: string } | null>(null)
   const [linkDe, setLinkDe] = useState<{ nome: string; link: string } | null>(null)
+  const [alunoRemovendo, setAlunoRemovendo] = useState<{ id: string; nome: string } | null>(null)
   if (erro) return <p role="alert" className="text-[16px] text-diff-c">{erro}</p>
   const docentes = dados?.docentes ?? []
   const alunos = dados?.alunos ?? []
@@ -581,13 +616,6 @@ export function EquipeAlunos() {
       const r = await api<{ link: string }>('POST', `/turmas/${equipe.id}/alunos/${aluno.id}/redefinir-senha`)
       setLinkDe({ nome: aluno.nome, link: r.link })
     })
-  const remover = (aluno: { id: string; nome: string }) => {
-    if (!window.confirm(`Remover ${aluno.nome} da equipe? As respostas dele(a) nesta equipe serão apagadas.`)) return
-    void executar(async () => {
-      await api('DELETE', `/turmas/${equipe.id}/alunos/${aluno.id}`)
-      await Promise.all([recarregarAlunos(), recarregar()])
-    })
-  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -598,6 +626,25 @@ export function EquipeAlunos() {
           <LinkDeConvite codigo={equipe.codigoConvite} />
         </AlunosSecao>
       )}
+
+      {alunoRemovendo && (
+        <ExcluirModal
+          tipo="aluno"
+          nome={alunoRemovendo.nome}
+          onClose={() => setAlunoRemovendo(null)}
+          onConfirmar={() => {
+            void executar(async () => {
+              await api(
+                'DELETE',
+                `/turmas/${equipe.id}/alunos/${alunoRemovendo.id}`,
+              )
+              await Promise.all([recarregarAlunos(), recarregar()])
+              setAlunoRemovendo(null)
+            })
+          }}
+        />
+      )}
+
       <AlunosSecao titulo={`Docentes (${docentes.length})`}>
         <DataTable colunas={[{ titulo: 'Aluno' }]} linhas={docentes.map((d) => [<Iniciais key={d.id} nome={d.nome} cor="#15593c" iniciais={iniciaisDe(d.nome)} />])} />
       </AlunosSecao>
@@ -623,7 +670,7 @@ export function EquipeAlunos() {
                 items={[
                   { label: 'Ver respostas', icon: 'visibility', onClick: () => setRespostasDe(a) },
                   { label: 'Gerar link de redefinição de senha', icon: 'key', onClick: () => void gerarLink(a) },
-                  { label: 'Remover da equipe', icon: 'person_remove', destructive: true, onClick: () => remover(a) },
+                  { label: 'Remover da equipe', icon: 'person_remove', destructive: true, onClick: () => setAlunoRemovendo(a) },
                 ]}
               />,
             ])}

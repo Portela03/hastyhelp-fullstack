@@ -18,7 +18,7 @@ const NAV_PROFESSOR = [
 ]
 
 const NAV_ALUNO = [
-  { to: '/aluno/turmas', label: 'Turmas', icon: 'groups' },
+  { to: '/aluno/turmas', label: 'Equipes', icon: 'groups' },
   { to: '/aluno/autoavaliacoes', label: 'Autoavaliações', icon: 'assignment' },
   { to: '/aluno/desempenho', label: 'Desempenho', icon: 'bar_chart' },
 ]
@@ -364,7 +364,7 @@ export function DataTable({
             style={{ gridTemplateColumns: grid }}
           >
             {linha.map((cel, j) => (
-              <div key={j} role="cell" className={cx(colunas[j]?.centro && 'text-center')}>
+              <div key={j} role="cell" className={cx(colunas[j]?.centro && 'flex items-center justify-center text-center')}>
                 {cel}
               </div>
             ))}

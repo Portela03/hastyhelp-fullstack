@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Navigate, Outlet, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import sortIcon from '../assets/figma/sort.svg'
 import { AppShell, Banner, DataTable, Section, TabBar, Toolbar } from '../components/layout'
-import { CriarFormularioModal, EditarFormularioModal } from '../components/modals'
+import { CriarFormularioModal, EditarFormularioModal, ExcluirModal } from '../components/modals'
 import { PreviaAlunoModal, RespostasDoAlunoModal } from '../components/modals-alunos'
 import { Avatar, ButtonPrimary, DifficultyLetter, FilterSelect, KpiCard, Panel, SearchBox, SortButton, StatusPill, TeamBadge, cx, OptionsMenu } from '../components/ui'
 import { api } from '../api/client'
@@ -23,6 +23,8 @@ function FormRow({ form }: { form: Formulario }) {
   const abrir = () => navigate(`/avaliacoes/${form.id}`)
   const [editar, setEditar] = useState(false)
   const rascunho = form.status === 'rascunho'
+  const [formularioExcluindo, setFormularioExcluindo] = useState<Formulario | null>(null)
+  
   return (
     <>
       <li
@@ -92,15 +94,7 @@ function FormRow({ form }: { form: Formulario }) {
                   label: 'Excluir',
                   icon: 'delete',
                   destructive: true,
-                  onClick: () => {
-                    if (
-                      window.confirm(
-                        `Excluir o formulário "${form.titulo}"? As respostas dos alunos também serão apagadas.`,
-                      )
-                    ) {
-                      void removerFormulario(form.id)
-                    }
-                  },
+                  onClick: () => setFormularioExcluindo(form),
                 },
               ]}
             />
@@ -112,6 +106,18 @@ function FormRow({ form }: { form: Formulario }) {
         <EditarFormularioModal
           formulario={form}
           onClose={() => setEditar(false)}
+        />
+      )}
+
+      {formularioExcluindo && (
+        <ExcluirModal
+          tipo="formulario"
+          nome={formularioExcluindo.titulo}
+          onClose={() => setFormularioExcluindo(null)}
+          onConfirmar={() => {
+            void removerFormulario(formularioExcluindo.id)
+            setFormularioExcluindo(null)
+          }}
         />
       )}
     </>
@@ -213,6 +219,7 @@ export function FormularioDetalhe() {
   if (!form) return <Navigate to="/avaliacoes" replace />
   const equipe = equipes.find((e) => e.id === form.equipeId)
   const base = `/avaliacoes/${form.id}`
+  const [formularioExcluindo, setFormularioExcluindo] = useState<Formulario | null>(null)
 
   const notificar = () =>
     executar(async () => {
@@ -243,11 +250,7 @@ export function FormularioDetalhe() {
                 label: 'Excluir formulário',
                 icon: 'delete',
                 destructive: true,
-                onClick: async () => {
-                  if (!window.confirm(`Excluir o formulário "${form.titulo}"? As respostas dos alunos também serão apagadas.`)) return
-                  await removerFormulario(form.id)
-                  navigate('/avaliacoes', { replace: true })
-                },
+                onClick: () => setFormularioExcluindo(form),
               },
             ]}
           />
@@ -275,6 +278,18 @@ export function FormularioDetalhe() {
       <Outlet context={form} />
       {editar && <EditarFormularioModal formulario={form} onClose={() => setEditar(false)} />}
       {previa && <PreviaAlunoModal formulario={form} onClose={() => setPrevia(false)} />}
+      {formularioExcluindo && (
+        <ExcluirModal
+          tipo="formulario"
+          nome={formularioExcluindo.titulo}
+          onClose={() => setFormularioExcluindo(null)}
+          onConfirmar={async () => {
+            await removerFormulario(formularioExcluindo.id)
+            setFormularioExcluindo(null)
+            navigate('/avaliacoes', { replace: true })
+          }}
+        />
+      )}
     </AppShell>
   )
 }

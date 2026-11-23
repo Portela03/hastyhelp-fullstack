@@ -24,6 +24,21 @@ export class RemoverAlunoDaTurma {
   }
 }
 
+/** R-18: o próprio aluno se desmatricula da turma. */
+export class SairDaEquipe {
+  constructor(private readonly d: { turmas: TurmaRepositorio; envios: EnvioRepositorio }) {}
+
+  async executar(ator: Ator, turmaId: string): Promise<void> {
+    if (ator.papel !== 'aluno') throw naoEncontrado('TURMA_NAO_ENCONTRADA', 'Turma não encontrada.')
+    const turma = await this.d.turmas.porId(turmaId)
+    if (!turma || !(await this.d.turmas.alunosIds(turmaId)).includes(ator.id)) {
+      throw naoEncontrado('TURMA_NAO_ENCONTRADA', 'Turma não encontrada.')
+    }
+    await this.d.envios.excluirDoAlunoNaTurma(turmaId, ator.id)
+    await this.d.turmas.desmatricular(turmaId, ator.id)
+  }
+}
+
 /** R-77: o professor gera o link de redefinição de senha de um aluno seu. */
 export class GerarLinkDeRedefinicao {
   constructor(private readonly d: { turmas: TurmaRepositorio; usuarios: UsuarioRepositorio; emitirRedefinicao: EmitirRedefinicao }) {}

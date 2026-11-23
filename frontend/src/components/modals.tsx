@@ -716,3 +716,106 @@ export function PerfilModal({ onClose }: { onClose: () => void }) {
     </Modal>
   )
 }
+
+type ExcluirModalProps = {
+  tipo: 'equipe' | 'formulario' | 'aluno' | 'sairEquipe'
+  nome: string
+  onClose: () => void
+  onConfirmar: () => void
+}
+
+export function ExcluirModal({
+  tipo,
+  nome,
+  onClose,
+  onConfirmar,
+}: ExcluirModalProps) {
+  const [confirmado, setConfirmado] = useState(false)
+
+  const ehEquipe = tipo === 'equipe'
+  const ehAluno = tipo === 'aluno'
+  const ehSairEquipe = tipo === 'sairEquipe'
+
+  const titulo = ehSairEquipe
+    ? 'Sair da equipe'
+    : ehAluno
+      ? 'Remover da equipe'
+      : 'Excluir permanentemente'
+
+  const rotuloConfirmacao = ehSairEquipe
+    ? 'Sair da equipe'
+    : ehAluno
+      ? 'Remover aluno'
+      : 'Excluir'
+
+  function confirmar(e: FormEvent) {
+    e.preventDefault()
+
+    if (!confirmado) return
+
+    onConfirmar()
+  }
+
+  return (
+    <Modal
+      title={titulo}
+      icon={ehSairEquipe || ehAluno ? 'person' : 'delete'}
+      onClose={onClose}
+      width={640}
+      titleClassName="!text-diff-c !text-[22px] sm:!text-[26px]"
+    >
+      <form onSubmit={confirmar} className="flex w-full flex-col gap-7">
+        <p className="text-center text-[20px] leading-7 text-ink">
+          {ehSairEquipe ? (
+            <>
+              Você está prestes a sair da equipe <strong>{nome}</strong>.
+              <br />
+              Suas respostas e sua participação nesta equipe serão apagadas.
+            </>
+          ) : ehAluno ? (
+            <>
+              Você está prestes a remover o aluno <strong>{nome}</strong> da equipe.
+              <br />
+              As respostas dele(a) nesta equipe serão apagadas.
+            </>
+          ) : ehEquipe ? (
+            <>
+              Você está prestes a excluir a equipe <strong>{nome}</strong>.
+              <br />
+              Todos os formulários, respostas de alunos e métricas associadas serão apagados.
+            </>
+          ) : (
+            <>
+              Você está prestes a excluir o formulário <strong>{nome}</strong>.
+              <br />
+              Todas as respostas e métricas associadas serão apagadas.
+            </>
+          )}
+        </p>
+
+        <label className="flex cursor-pointer items-center gap-3 text-[18px] text-ink">
+          <input
+            type="checkbox"
+            checked={confirmado}
+            onChange={(e) => setConfirmado(e.target.checked)}
+            className="size-5 cursor-pointer accent-diff-c"
+          />
+
+          <span>
+            Sim, entendo que esta ação é irreversível.
+          </span>
+        </label>
+
+        <div className="flex w-full gap-3">
+          <ButtonBrown type="submit" disabled={!confirmado} className="bg-diff-c hover:bg-diff-c/80">
+            {rotuloConfirmacao}
+          </ButtonBrown>
+
+          <ButtonGhost type="button" onClick={onClose}>
+            Cancelar
+          </ButtonGhost>
+        </div>
+      </form>
+    </Modal>
+  )
+}
