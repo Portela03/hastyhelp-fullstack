@@ -13,6 +13,7 @@ const PERGUNTA = z.object({
   tipo: z.enum(['unica', 'multipla']),
   opcoes: z.array(z.string()),
   gabarito: z.array(z.number().int()).optional(),
+  categoriasOpcao: z.array(z.enum(['I', 'P', 'C']).nullable()).optional(),
 })
 const ESQ = {
   cadastro: z.object({

@@ -57,6 +57,7 @@ export interface Pergunta {
   tipo: 'unica' | 'multipla'
   opcoes: string[]
   marcadas: number[]
+  categoriasOpcao?: Array<Dificuldade | null>
   /** Opções corretas, definidas pelo professor. Só é mostrado ao aluno se o professor liberar o gabarito. */
   gabarito?: number[]
 }

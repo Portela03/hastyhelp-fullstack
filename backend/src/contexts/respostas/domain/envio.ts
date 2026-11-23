@@ -49,7 +49,15 @@ export function enviarEnvio(envio: Envio, perguntas: Pergunta[], observacao: str
   const completo = perguntas.length > 0 && perguntas.every((p) => (envio.respostas[p.id]?.length ?? 0) > 0)
   if (!completo) throw new ErroDeDominio('RESPOSTAS_INCOMPLETAS', 'Responda todas as perguntas antes de enviar.')
   const nota = calcularNota(perguntas, envio.respostas)
-  const compreensao = classificarCompreensao(nota)
+  const categoriasMarcadas = perguntas.flatMap((pergunta) =>
+    (envio.respostas[pergunta.id] ?? []).flatMap((indice) => {
+      const categoria = pergunta.categoriasOpcao?.[indice]
+      return categoria ? [categoria] : []
+    }),
+  )
+  const compreensao = categoriasMarcadas.length
+    ? (categoriasMarcadas.includes('C') ? 'C' : categoriasMarcadas.includes('P') ? 'P' : 'I')
+    : classificarCompreensao(nota)
   const obs = observacao?.trim()
   return {
     ...envio,

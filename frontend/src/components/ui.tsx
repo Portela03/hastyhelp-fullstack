@@ -46,12 +46,16 @@ export function OptionsMenu({ label, items, className }: OptionsMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
   const botaoRef = useRef<HTMLButtonElement>(null)
   const [menuPosicao, setMenuPosicao] = useState({ top: 0, left: 0 })
+  const menuPortalRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!aberto) return
 
     const fecharAoClicarFora = (event: MouseEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) {
+      const clicouNoBotao = menuRef.current?.contains(event.target as Node)
+      const clicouNoMenu = menuPortalRef.current?.contains(event.target as Node)
+
+      if (!clicouNoBotao && !clicouNoMenu) {
         setAberto(false)
       }
     }
@@ -115,6 +119,7 @@ export function OptionsMenu({ label, items, className }: OptionsMenuProps) {
       {aberto && 
         createPortal(
         <div
+          ref={menuPortalRef}
           role="menu"
           aria-label={label}
           className="fixed z-[9999] max-h-[calc(100vh-16px)] min-w-[200px] overflow-hidden rounded-xl border border-line-input bg-white py-1 shadow-[0_6px_18px_rgba(51,51,51,0.22)]"

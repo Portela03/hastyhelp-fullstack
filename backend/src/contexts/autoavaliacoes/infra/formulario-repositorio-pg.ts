@@ -21,10 +21,11 @@ interface LinhaPergunta {
   tipo: TipoPergunta
   opcoes: string[]
   gabarito: number[] | null
+  categorias_opcao: Array<'I' | 'P' | 'C' | null> | null
 }
 
 const paraPergunta = (l: LinhaPergunta): Pergunta => ({
-  id: l.id, enunciado: l.enunciado, tipo: l.tipo, opcoes: l.opcoes, ...(l.gabarito ? { gabarito: l.gabarito } : {}),
+  id: l.id, enunciado: l.enunciado, tipo: l.tipo, opcoes: l.opcoes, ...(l.gabarito ? { gabarito: l.gabarito } : {}), ...(l.categorias_opcao ? { categoriasOpcao: l.categorias_opcao } : {}),
 })
 const paraFormulario = (l: LinhaFormulario, perguntas: Pergunta[]): Formulario => ({
   id: l.id,
@@ -55,8 +56,8 @@ export class FormularioRepositorioPg implements FormularioRepositorio {
       await c.query('DELETE FROM perguntas WHERE formulario_id = $1', [f.id])
       for (const [ordem, p] of f.perguntas.entries()) {
         await c.query(
-          'INSERT INTO perguntas (id, formulario_id, ordem, enunciado, tipo, opcoes, gabarito) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-          [p.id, f.id, ordem, p.enunciado, p.tipo, JSON.stringify(p.opcoes), p.gabarito ? JSON.stringify(p.gabarito) : null],
+          'INSERT INTO perguntas (id, formulario_id, ordem, enunciado, tipo, opcoes, gabarito, categorias_opcao) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+          [p.id, f.id, ordem, p.enunciado, p.tipo, JSON.stringify(p.opcoes), p.gabarito ? JSON.stringify(p.gabarito) : null, p.categoriasOpcao ? JSON.stringify(p.categoriasOpcao) : null],
         )
       }
       await c.query('COMMIT')

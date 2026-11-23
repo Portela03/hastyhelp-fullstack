@@ -216,10 +216,10 @@ export function FormularioDetalhe() {
   const [editar, setEditar] = useState(false)
   const [previa, setPrevia] = useState(false)
   const [mensagem, setMensagem] = useState('')
+  const [formularioExcluindo, setFormularioExcluindo] = useState<Formulario | null>(null)
   if (!form) return <Navigate to="/avaliacoes" replace />
   const equipe = equipes.find((e) => e.id === form.equipeId)
   const base = `/avaliacoes/${form.id}`
-  const [formularioExcluindo, setFormularioExcluindo] = useState<Formulario | null>(null)
 
   const notificar = () =>
     executar(async () => {

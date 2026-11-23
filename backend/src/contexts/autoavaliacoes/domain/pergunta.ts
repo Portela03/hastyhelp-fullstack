@@ -1,4 +1,5 @@
 import { ErroDeDominio } from '../../../shared/erros.ts'
+import type { NivelDeCompreensao } from '../../respostas/domain/nota.ts'
 
 export type TipoPergunta = 'unica' | 'multipla'
 
@@ -9,6 +10,8 @@ export interface Pergunta {
   opcoes: string[]
   /** Índices das opções corretas; opcional (autoavaliação sem gabarito não gera nota). */
   gabarito?: number[]
+  /** Categoria IPC associada a cada opção fixa de dificuldade; null significa sem categoria. */
+  categoriasOpcao?: Array<NivelDeCompreensao | null>
 }
 
 export function validarPergunta(p: Pergunta): Pergunta {
@@ -26,5 +29,8 @@ export function validarPergunta(p: Pergunta): Pergunta {
       throw new ErroDeDominio('PERGUNTA_INVALIDA', 'Gabarito inválido para a pergunta.', 422)
     }
   }
-  return { id: p.id, enunciado, tipo: p.tipo, opcoes, ...(gabarito?.length ? { gabarito: [...gabarito].sort((a, b) => a - b) } : {}) }
+  if (p.categoriasOpcao && (p.categoriasOpcao.length !== opcoes.length || p.categoriasOpcao.some((categoria) => categoria !== null && !['I', 'P', 'C'].includes(categoria)))) {
+    throw new ErroDeDominio('PERGUNTA_INVALIDA', 'Categorias IPC inválidas para as opções.', 422)
+  }
+  return { id: p.id, enunciado, tipo: p.tipo, opcoes, ...(gabarito?.length ? { gabarito: [...gabarito].sort((a, b) => a - b) } : {}), ...(p.categoriasOpcao ? { categoriasOpcao: [...p.categoriasOpcao] } : {}) }
 }

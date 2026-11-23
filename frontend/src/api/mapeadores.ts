@@ -24,6 +24,7 @@ export interface PerguntaDTO {
   opcoes: string[]
   gabarito?: number[]
   marcadas?: number[]
+  categoriasOpcao?: Array<Dificuldade | null>
 }
 
 export interface TurmaDTO {
@@ -83,6 +84,7 @@ export const paraPergunta = (p: PerguntaDTO): Pergunta => ({
   tipo: p.tipo,
   opcoes: p.opcoes,
   marcadas: p.marcadas ?? [],
+  ...(p.categoriasOpcao ? { categoriasOpcao: p.categoriasOpcao } : {}),
   ...(p.gabarito?.length ? { gabarito: p.gabarito } : {}),
 })
 
@@ -142,4 +144,5 @@ export const perguntaParaApi = (p: Pergunta) => ({
   tipo: p.tipo,
   opcoes: p.opcoes,
   ...(p.gabarito?.length ? { gabarito: p.gabarito } : {}),
+  ...(p.categoriasOpcao ? { categoriasOpcao: p.categoriasOpcao } : {}),
 })
