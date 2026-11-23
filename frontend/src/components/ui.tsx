@@ -315,7 +315,7 @@ export function PasswordField({ label, placeholder, value, onChange, name }: { l
         />
         <button
           type="button"
-          aria-label={show ? 'Ocultar senha' : 'Mostrar senha'}
+          aria-label={show ? 'Ocultar senha' : 'Exibir senha'}
           onClick={setShow}
           className="flex cursor-pointer text-[20px] text-placeholder"
         >
@@ -457,12 +457,14 @@ export function Modal({
   onClose,
   children,
   width = 480,
+  titleClassName
 }: {
   title: string
   icon: string
   onClose: () => void
   children: ReactNode
   width?: number
+  titleClassName?: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const titleId = useId()
@@ -490,7 +492,13 @@ export function Modal({
         style={{ maxWidth: width }}
         className="my-auto flex w-full flex-col items-center gap-6 rounded-lg bg-white px-9 py-8"
       >
-        <h2 id={titleId} className="flex w-full items-center text-[22px] font-semibold text-ink">
+        <h2
+          id={titleId}
+          className={cx(
+            'flex w-full items-center text-[22px] font-semibold text-ink',
+            titleClassName,
+          )}
+        >
           <Icon name={icon} round={false} />
           {title}
         </h2>
@@ -547,3 +555,4 @@ export function Panel({ titulo, subtitulo, children, className, tituloTamanho = 
 export function DifficultyLetter({ letra, className }: { letra: string; className?: string }) {
   return <span className={cx('font-plex font-semibold', className)}>{letra}</span>
 }
+
