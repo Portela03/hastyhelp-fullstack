@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
-const PORTA_API = 3334
-const PORTA_WEB = 5174
+const PORTA_API = Number(process.env.E2E_PORTA_API ?? 3334)
+const PORTA_WEB = Number(process.env.E2E_PORTA_WEB ?? 5174)
 const DATABASE_URL = process.env.E2E_DATABASE_URL ?? 'postgres://hastyhelp:hastyhelp@localhost:5433/hastyhelp_e2e'
 
 /**

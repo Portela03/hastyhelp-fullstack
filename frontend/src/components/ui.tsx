@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react'
+import type { ButtonHTMLAttributes, InputHTMLAttributes, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
 import dotAgendado from '../assets/figma/dot-agendado.svg'
 import dotAtivo from '../assets/figma/dot-ativo.svg'
 import dotInativo from '../assets/figma/dot-inativo.svg'
@@ -9,6 +9,7 @@ import { ROTULO_STATUS_ALUNO } from '../data/aluno'
 import type { StatusAluno } from '../data/aluno'
 import type { StatusFormulario } from '../data/tipos'
 import { createPortal } from 'react-dom'
+import { proximoIndice } from './navegacao-teclado'
 
 export function cx(...c: Array<string | false | null | undefined>) {
   return c.filter(Boolean).join(' ')
@@ -302,19 +303,33 @@ export function SegmentedTabs<T extends string>({
   /** id do painel exibido, para ligar as abas a ele (acessibilidade). */
   idPainel?: string
 }) {
+  const refs = useRef<Array<HTMLButtonElement | null>>([])
+  // roving tabindex: setas movem o foco e ativam a aba (ativação automática)
+  function aoTeclar(e: ReactKeyboardEvent<HTMLButtonElement>, indice: number) {
+    const destino = proximoIndice(e.key, indice, abas.map(() => true), 'horizontal')
+    if (destino === null) return
+    e.preventDefault()
+    onChange(abas[destino]!.id)
+    refs.current[destino]?.focus()
+  }
   return (
     <div role="tablist" aria-label={rotulo} className="flex w-full overflow-hidden rounded-lg border border-ink bg-white">
-      {abas.map((a) => (
+      {abas.map((a, i) => (
         <button
           key={a.id}
+          ref={(el) => {
+            refs.current[i] = el
+          }}
           type="button"
           role="tab"
           id={`aba-${a.id}`}
           aria-selected={ativa === a.id}
           aria-controls={idPainel}
+          tabIndex={ativa === a.id ? 0 : -1}
           onClick={() => onChange(a.id)}
+          onKeyDown={(e) => aoTeclar(e, i)}
           className={cx(
-            'flex-1 cursor-pointer px-3 py-2 text-[20px] transition duration-100',
+            'min-h-11 flex-1 cursor-pointer px-3 py-2 text-[20px] transition duration-100',
             ativa === a.id ? 'bg-btn-brown font-medium text-ink' : 'bg-white text-ink hover:bg-page',
           )}
         >
@@ -608,17 +623,38 @@ export function Modal({
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const titleId = useId()
+  // onClose costuma ser uma função inline: guardá-la numa ref evita refocar o 1º controle a cada render do pai
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  })
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null
-    const first = ref.current?.querySelector<HTMLElement>('input, select, button')
+    const first = ref.current?.querySelector<HTMLElement>('input, select, button:not([tabindex="-1"])')
     first?.focus()
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') return onCloseRef.current()
+      if (e.key !== 'Tab' || !ref.current) return
+      // prende o foco no diálogo (aria-modal)
+      const focaveis = [...ref.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')].filter((el) => el.tabIndex >= 0)
+      if (focaveis.length === 0) return
+      const primeiro = focaveis[0]!
+      const ultimo = focaveis[focaveis.length - 1]!
+      const dentro = ref.current.contains(document.activeElement)
+      if (e.shiftKey && (document.activeElement === primeiro || !dentro)) {
+        e.preventDefault()
+        ultimo.focus()
+      } else if (!e.shiftKey && (document.activeElement === ultimo || !dentro)) {
+        e.preventDefault()
+        primeiro.focus()
+      }
+    }
     document.addEventListener('keydown', onKey)
     return () => {
       document.removeEventListener('keydown', onKey)
       prev?.focus()
     }
-  }, [onClose])
+  }, [])
     return createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto bg-black/45 p-4 backdrop-blur-[1px]"
@@ -630,7 +666,7 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         style={{ maxWidth: width }}
-        className="my-auto flex w-full flex-col items-center gap-6 rounded-lg bg-white px-9 py-8"
+        className="my-auto flex w-full flex-col items-center gap-6 rounded-lg bg-white px-5 py-8 sm:px-9"
       >
         <h2
           id={titleId}

@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test'
 import type { Page } from '@playwright/test'
 
-const API = 'http://localhost:3334/api'
+const API = `http://localhost:${process.env.E2E_PORTA_API ?? 3334}/api`
 
 export async function chamar<T = unknown>(metodo: string, caminho: string, corpo?: unknown, token?: string): Promise<T> {
   const r = await fetch(`${API}${caminho}`, {

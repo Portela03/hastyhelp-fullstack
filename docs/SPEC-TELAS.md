@@ -205,3 +205,24 @@ Troque `node-id` por: `449-2758` (modal criar equipe) · `449-2828` (login) · `
 2. Telas 7, 13 e 14 têm conteúdo abaixo da dobra (rolagem) — pedir o contexto completo do nó.
 3. Textos com erros no Figma ("Moveis", "Dominio", "Ultimo") — manter fiel ou corrigir acentuação? Sugestão: **corrigir** ("Móveis", "Domínio", "Último").
 4. Fluxo real de autenticação/backend não está no design — usar mock local até definir API.
+
+## 9. Entrada em turmas — UX e acessibilidade (modais de membros e convite)
+
+Complementa "Entrada em turmas" de `SPEC-BACKEND.md` (R-100…R-114). Telas: `AdicionarMembrosModal` (professor, abas Código | Email), `EntrarEquipeModal` e `ConvitesRecebidos` (aluno), `/convite/:codigo`.
+
+### 9.1 Link de convite inválido (`/convite/:codigo`)
+- Sem sessão e código inexistente/expirado (`GET /auth/convites/:codigo` → 404): **não** exibir o formulário de cadastro. Mostrar só o aviso (`role="alert"`: "Este link de convite é inválido ou expirou. Peça um novo ao professor.") e o botão **Voltar ao login** (leva a `/login`).
+- Enquanto carrega, o formulário também fica oculto ("Carregando convite…", `role="status"`). Convite válido: comportamento inalterado (aviso + cadastro).
+- Já logado: mantém o aviso e o link "Voltar" (para `/aluno/turmas` ou `/equipes`).
+
+### 9.2 Acessibilidade
+- **Foco inicial**: ao abrir o modal o foco vai para o primeiro controle (aba selecionada ou campo de código); `Tab`/`Shift+Tab` ficam presos ao diálogo; `Esc` fecha e devolve o foco a quem abriu.
+- **Abas (`SegmentedTabs`)**: padrão WAI-ARIA com *roving tabindex* — só a aba ativa entra na ordem de `Tab`; `←`/`→` (e `Home`/`End`) movem o foco e ativam a aba (com volta circular).
+- **Busca por e-mail**: o grupo de resultados é `radiogroup` com *roving tabindex*; `↑ ↓ ← →` movem a seleção entre alunos ainda não convidados. Região `role="status"` sempre montada anuncia "N alunos encontrados", "Nenhum aluno encontrado" e "Convite enviado…". Erros usam `role="alert"`.
+- **Código copiado**: o botão muda de texto e uma região `role="status"` anuncia "Código copiado" / "Link copiado".
+- Campo de código do aluno liga o erro por `aria-describedby` e `aria-invalid`.
+- **Contraste** mínimo 4,5:1 para texto nos três temas (`claro`, `escuro`, `alto-contraste`): mensagens de erro usam o token `--color-erro` (não `diff-c`, que é cor de gráfico).
+- **Alvo de toque** ≥ 44×44 px (botões de texto, abas, linhas de resultado, chave "Aprovar manualmente") — vale também no mobile 375×812.
+
+### 9.3 Validação visual
+Capturas dos dois modais (abas Código e Email) em 1440×810 e 375×812 nos três temas, geradas por `e2e/entrada-turmas-visual.spec.ts` (saída em `frontend/capturas-visual/membros/`, ignorada pelo git).

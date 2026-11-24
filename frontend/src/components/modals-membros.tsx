@@ -1,11 +1,12 @@
-import { useCallback, useId, useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
+import { useCallback, useId, useRef, useState } from 'react'
+import type { FormEvent, KeyboardEvent, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, mensagemDeErro } from '../api/client'
 import { useApi } from '../api/use-api'
 import type { Equipe } from '../data/tipos'
 import { useStore } from '../store'
 import type { ResultadoEntrada } from '../store'
+import { proximoIndice } from './navegacao-teclado'
 import { Avatar, ButtonBrown, ButtonGhost, Icon, Modal, SegmentedTabs, TeamBadge, cx } from './ui'
 
 /* Adicionar membros (professor): por código da equipe ou por e-mail de aluno já cadastrado (R-100…R-111) */
@@ -26,7 +27,8 @@ interface AlunoBuscaDTO {
   convidado: boolean
 }
 
-const CORES_AVATAR = ['#15593c', '#a8785a', '#4a6fa5', '#8a5a9e', '#b5533c', '#3c8a8a']
+// todas com contraste ≥ 4,5:1 para as iniciais claras
+const CORES_AVATAR = ['#15593c', '#8a5a3c', '#3f5f94', '#7a4a8e', '#a3412c', '#2f7272']
 const corDoAvatar = (id: string) => CORES_AVATAR[[...id].reduce((soma, c) => soma + c.charCodeAt(0), 0) % CORES_AVATAR.length]
 const iniciais = (nome: string) =>
   nome
@@ -44,7 +46,7 @@ function BotaoTexto({ onClick, children, destaque, desabilitado }: { onClick: ()
       onClick={onClick}
       disabled={desabilitado}
       className={cx(
-        'cursor-pointer rounded-lg border px-3 py-1 text-[16px] disabled:cursor-not-allowed disabled:opacity-50',
+        'flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-lg border px-3 py-1 text-[16px] disabled:cursor-not-allowed disabled:opacity-50',
         destaque ? 'border-ink bg-btn-brown text-ink' : 'border-line-input bg-white text-[#505050] hover:bg-page',
       )}
     >
@@ -55,13 +57,14 @@ function BotaoTexto({ onClick, children, destaque, desabilitado }: { onClick: ()
 
 function LinhaAluno({ nome, email, id, acoes }: { nome: string; email: string; id: string; acoes?: ReactNode }) {
   return (
-    <div className="flex items-center gap-3">
+    // no mobile as ações descem para a linha de baixo, senão nome e e-mail ficam truncados
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       <Avatar letra={iniciais(nome)} cor={corDoAvatar(id)} size={40} />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-[10rem] flex-1 flex-col">
         <span className="truncate text-[16px] font-semibold text-ink">{nome}</span>
         <span className="truncate text-[16px] text-ink">{email}</span>
       </div>
-      {acoes}
+      {acoes && <div className="flex w-full justify-end sm:w-auto">{acoes}</div>}
     </div>
   )
 }
@@ -106,9 +109,11 @@ function AbaCodigo({ equipe }: { equipe: Equipe }) {
           <BotaoTexto onClick={() => copiar('codigo')}>{copiado === 'codigo' ? 'Código copiado!' : 'Copiar código'}</BotaoTexto>
           <BotaoTexto onClick={() => copiar('link')}>{copiado === 'link' ? 'Link copiado!' : 'Copiar link de convite'}</BotaoTexto>
         </div>
+        {/* região sempre montada: leitores de tela anunciam a mudança do botão */}
+        <span role="status" className="sr-only">{copiado === 'codigo' ? 'Código copiado.' : copiado === 'link' ? 'Link de convite copiado.' : ''}</span>
       </div>
 
-      <label className="flex cursor-pointer items-start gap-3">
+      <label className="flex min-h-11 cursor-pointer items-start gap-3">
         <input
           type="checkbox"
           role="switch"
@@ -134,8 +139,8 @@ function AbaCodigo({ equipe }: { equipe: Equipe }) {
         </span>
       </label>
 
-      {msg && <p role="alert" className="text-[14px] text-diff-c">{msg}</p>}
-      {erro && <p role="alert" className="text-[14px] text-diff-c">{erro}</p>}
+      {msg && <p role="alert" className="text-[14px] text-erro">{msg}</p>}
+      {erro && <p role="alert" className="text-[14px] text-erro">{erro}</p>}
 
       <section aria-label="Pedidos de entrada" className="flex flex-col gap-2">
         <h3 className="text-[18px] font-semibold text-ink">Pedidos de entrada {pendentes.length > 0 && `(${pendentes.length})`}</h3>
@@ -174,6 +179,7 @@ function AbaEmail({ equipe, onFechar }: { equipe: Equipe; onFechar: () => void }
   const [pesquisando, setPesquisando] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const idBusca = useId()
+  const radios = useRef<Array<HTMLButtonElement | null>>([])
 
   async function pesquisar(e?: FormEvent) {
     e?.preventDefault()
@@ -217,6 +223,17 @@ function AbaEmail({ equipe, onFechar }: { equipe: Equipe; onFechar: () => void }
 
   const convites = dados?.convites ?? []
   const escolhido = resultados?.find((a) => a.id === selecionado)
+  const primeiroLivre = resultados?.find((a) => !a.convidado)?.id
+
+  // radiogroup (WAI-ARIA): setas movem a seleção entre alunos ainda não convidados
+  function aoTeclarRadio(e: KeyboardEvent<HTMLButtonElement>, indice: number) {
+    if (!resultados) return
+    const destino = proximoIndice(e.key, indice, resultados.map((a) => !a.convidado), 'ambos')
+    if (destino === null) return
+    e.preventDefault()
+    setSelecionado(resultados[destino]!.id)
+    radios.current[destino]?.focus()
+  }
   return (
     <div role="tabpanel" id="painel-membros" aria-labelledby="aba-email" className="flex w-full flex-col gap-4">
       <form onSubmit={pesquisar} role="search" className="flex w-full overflow-hidden rounded-lg border border-placeholder bg-white">
@@ -229,26 +246,35 @@ function AbaEmail({ equipe, onFechar }: { equipe: Equipe; onFechar: () => void }
           autoComplete="off"
           className="min-w-0 flex-1 bg-white p-3 text-[18px] text-ink placeholder:text-placeholder"
         />
-        <button type="submit" disabled={pesquisando} className="flex cursor-pointer items-center gap-1 border-l border-placeholder px-4 text-[18px] text-muted disabled:opacity-50">
+        <button type="submit" disabled={pesquisando} className="flex min-h-11 cursor-pointer items-center gap-1 border-l border-placeholder px-4 text-[18px] text-muted disabled:opacity-50">
           <Icon name="search" className="text-[20px]" />
           Pesquisar
         </button>
       </form>
 
-      {erro && <p role="alert" className="text-[14px] text-diff-c">{erro}</p>}
-      {info && <p role="status" className="rounded-lg border border-line-input bg-panel px-3 py-2 text-[14px] text-ink">{info}</p>}
+      {erro && <p role="alert" className="text-[14px] text-erro">{erro}</p>}
+      {/* região viva sempre montada: anuncia resultado da busca e confirmação do convite */}
+      <div role="status" className="flex flex-col gap-2 empty:hidden">
+        {info && <p className="rounded-lg border border-line-input bg-panel px-3 py-2 text-[14px] text-ink">{info}</p>}
+        {resultados !== null && resultados.length > 0 && <span className="sr-only">{resultados.length === 1 ? '1 aluno encontrado.' : `${resultados.length} alunos encontrados.`}</span>}
+        {resultados !== null && resultados.length === 0 && <p className="py-2 text-[16px] text-muted">Nenhum aluno encontrado com “{busca.trim()}”. O aluno precisa já ter criado a conta.</p>}
+      </div>
 
       <div className="min-h-[120px]">
-        {resultados !== null && resultados.length === 0 && <p role="status" className="py-2 text-[16px] text-muted">Nenhum aluno encontrado com “{busca.trim()}”. O aluno precisa já ter criado a conta.</p>}
         {resultados !== null && resultados.length > 0 && (
           <ul role="radiogroup" aria-label="Alunos encontrados" className="flex flex-col">
-            {resultados.map((a) => (
+            {resultados.map((a, i) => (
               <li key={a.id} className="border-b border-line last:border-b-0">
                 <button
+                  ref={(el) => {
+                    radios.current[i] = el
+                  }}
                   type="button"
                   role="radio"
                   aria-checked={selecionado === a.id}
                   disabled={a.convidado}
+                  tabIndex={selecionado === a.id || (selecionado === null && a.id === primeiroLivre) ? 0 : -1}
+                  onKeyDown={(e) => aoTeclarRadio(e, i)}
                   onClick={() => setSelecionado(a.id)}
                   className={cx(
                     'flex w-full cursor-pointer items-center gap-3 px-1 py-3 text-left disabled:cursor-not-allowed disabled:opacity-60',
@@ -282,10 +308,10 @@ function AbaEmail({ equipe, onFechar }: { equipe: Equipe; onFechar: () => void }
       )}
 
       <div className="flex w-full gap-3">
-        <ButtonBrown onClick={() => void convidar()} disabled={!escolhido || escolhido.convidado || enviando}>
+        <ButtonBrown className="min-h-11" onClick={() => void convidar()} disabled={!escolhido || escolhido.convidado || enviando}>
           Convidar
         </ButtonBrown>
-        <ButtonGhost onClick={onFechar}>Cancelar</ButtonGhost>
+        <ButtonGhost className="min-h-11" onClick={onFechar}>Cancelar</ButtonGhost>
       </div>
     </div>
   )
@@ -309,7 +335,7 @@ export function AdicionarMembrosModal({ equipe, onClose }: { equipe: Equipe; onC
         <>
           <AbaCodigo equipe={equipe} />
           <div className="flex w-full">
-            <ButtonBrown onClick={onClose}>Fechar</ButtonBrown>
+            <ButtonBrown className="min-h-11" onClick={onClose}>Fechar</ButtonBrown>
           </div>
         </>
       ) : (
@@ -328,6 +354,7 @@ export function EntrarEquipeModal({ onClose }: { onClose: () => void }) {
   const [erro, setErro] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [resultado, setResultado] = useState<ResultadoEntrada | null>(null)
+  const idErro = useId()
 
   async function enviar(e: FormEvent) {
     e.preventDefault()
@@ -357,6 +384,7 @@ export function EntrarEquipeModal({ onClose }: { onClose: () => void }) {
           <div className="flex w-full gap-3">
             {resultado.status === 'matriculado' && (
               <ButtonBrown
+                className="min-h-11"
                 onClick={() => {
                   onClose()
                   navigate(`/aluno/turmas/${resultado.turma.id}`)
@@ -365,7 +393,7 @@ export function EntrarEquipeModal({ onClose }: { onClose: () => void }) {
                 Abrir equipe
               </ButtonBrown>
             )}
-            <ButtonGhost onClick={onClose}>Fechar</ButtonGhost>
+            <ButtonGhost className="min-h-11" onClick={onClose}>Fechar</ButtonGhost>
           </div>
         </div>
       ) : (
@@ -378,6 +406,8 @@ export function EntrarEquipeModal({ onClose }: { onClose: () => void }) {
               onChange={(e) => setCodigo(e.target.value)}
               placeholder="Ex.: K7M2QX"
               maxLength={12}
+              aria-invalid={erro ? true : undefined}
+              aria-describedby={erro ? idErro : undefined}
               autoComplete="off"
               autoCapitalize="characters"
               spellCheck={false}
@@ -385,10 +415,10 @@ export function EntrarEquipeModal({ onClose }: { onClose: () => void }) {
             />
             <span className="text-[14px] text-muted">Peça o código ao seu professor (ele aparece em Equipes → ⋮ → Adicionar membros).</span>
           </div>
-          {erro && <p role="alert" className="text-[14px] text-diff-c">{erro}</p>}
+          {erro && <p id={idErro} role="alert" className="text-[14px] text-erro">{erro}</p>}
           <div className="flex w-full gap-3">
-            <ButtonBrown type="submit" disabled={enviando}>Entrar</ButtonBrown>
-            <ButtonGhost onClick={onClose}>Cancelar</ButtonGhost>
+            <ButtonBrown className="min-h-11" type="submit" disabled={enviando}>Entrar</ButtonBrown>
+            <ButtonGhost className="min-h-11" onClick={onClose}>Cancelar</ButtonGhost>
           </div>
         </form>
       )}

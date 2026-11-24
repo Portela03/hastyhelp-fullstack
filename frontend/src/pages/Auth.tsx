@@ -166,35 +166,49 @@ export function Cadastro({ convite }: { convite?: boolean }) {
     }
   }
 
+  // link de convite inválido/expirado: sem formulário, só o caminho de volta (R-17)
+  if (convite && conviteCarregado && !turma) {
+    return (
+      <AuthLayout titulo="Cadastrar" voltarPara="/login">
+        <div className="flex w-full flex-col gap-6">
+          <p role="alert" className="rounded-lg border border-erro px-3 py-2 text-[16px] text-erro">
+            Este link de convite é inválido ou expirou. Peça um novo ao professor.
+          </p>
+          <ButtonBrown className="min-h-11" onClick={() => navigate('/login')}>Voltar ao login</ButtonBrown>
+        </div>
+      </AuthLayout>
+    )
+  }
+
   return (
     <AuthLayout titulo="Cadastrar" voltarPara="/login">
-      {convite && conviteCarregado && (
-        <p
-          role="status"
-          className={cx('-mt-4 w-full rounded-lg border px-3 py-2 text-[14px]', turma ? 'border-line-input bg-panel text-ink' : 'border-diff-c text-diff-c')}
-        >
-          {turma
-            ? `Você foi convidado(a) para a turma ${turma.nome} (${turma.periodo}).${turma.aprovacaoManual ? ' O professor precisará aceitar sua entrada.' : ''}`
-            : 'Este link de convite é inválido ou expirou.'}
+      {convite && !conviteCarregado && (
+        <p role="status" className="w-full text-[16px] text-muted">Carregando convite…</p>
+      )}
+      {convite && conviteCarregado && turma && (
+        <p role="status" className="-mt-4 w-full rounded-lg border border-line-input bg-panel px-3 py-2 text-[14px] text-ink">
+          {`Você foi convidado(a) para a turma ${turma.nome} (${turma.periodo}).${turma.aprovacaoManual ? ' O professor precisará aceitar sua entrada.' : ''}`}
         </p>
       )}
-      <form onSubmit={enviar} className="flex w-full flex-col gap-8">
-        <div className="flex flex-col gap-2">
-          {!convite && <EscolhaPapel papel={papel} onChange={setPapel} />}
-          <Field label="Nome" name="nome" placeholder="Nome completo" value={nome} onChange={(e) => setNome(e.target.value)} required />
-          <Field label="Email" type="email" name="email" placeholder="Digite seu email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <div className="flex flex-col gap-1">
-            <PasswordField label="Senha" name="senha" placeholder="Digite uma senha forte" value={senha} onChange={setSenha} />
-            <PasswordField name="confirma" placeholder="Confirme sua senha" value={confirma} onChange={setConfirma} />
+      {(!convite || conviteCarregado) && (
+        <form onSubmit={enviar} className="flex w-full flex-col gap-8">
+          <div className="flex flex-col gap-2">
+            {!convite && <EscolhaPapel papel={papel} onChange={setPapel} />}
+            <Field label="Nome" name="nome" placeholder="Nome completo" value={nome} onChange={(e) => setNome(e.target.value)} required />
+            <Field label="Email" type="email" name="email" placeholder="Digite seu email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <div className="flex flex-col gap-1">
+              <PasswordField label="Senha" name="senha" placeholder="Digite uma senha forte" value={senha} onChange={setSenha} />
+              <PasswordField name="confirma" placeholder="Confirme sua senha" value={confirma} onChange={setConfirma} />
+            </div>
+            {erro && (
+              <p role="alert" className="text-[14px] text-erro">
+                {erro}
+              </p>
+            )}
           </div>
-          {erro && (
-            <p role="alert" className="text-[14px] text-diff-c">
-              {erro}
-            </p>
-          )}
-        </div>
-        <AuthButtons principal="Cadastrar" alternativa="Já tenho conta" para={convite && codigo ? `/login?convite=${encodeURIComponent(codigo)}` : '/login'} desabilitado={enviando} />
-      </form>
+          <AuthButtons principal="Cadastrar" alternativa="Já tenho conta" para={convite && codigo ? `/login?convite=${encodeURIComponent(codigo)}` : '/login'} desabilitado={enviando} />
+        </form>
+      )}
     </AuthLayout>
   )
 }
@@ -246,7 +260,7 @@ function ConviteLogado() {
       <div className="flex w-full flex-col gap-6">
         {turma === undefined && <p role="status" className="text-[16px] text-muted">Carregando convite…</p>}
         {turma === null && (
-          <p role="alert" className="rounded-lg border border-diff-c px-3 py-2 text-[14px] text-diff-c">
+          <p role="alert" className="rounded-lg border border-erro px-3 py-2 text-[14px] text-erro">
             Este link de convite é inválido ou expirou. Peça um novo ao professor.
           </p>
         )}
