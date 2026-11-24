@@ -98,6 +98,14 @@ Motivação: o link de convite só servia para quem ainda não tinha conta; quem
 - **R-113** Notificações novas: `convite-turma` (aluno), `solicitacao-entrada` (docente), `entrada-resolvida` (quem aguardava). Respeitam `notificacoesEmail` como as demais (R-81…R-84); convites e pedidos pendentes também aparecem nas telas, então não dependem do sino.
 - **R-114** Front: `/convite/:codigo` mostra a turma; sem conta → cadastro (ou login que volta ao convite); já logado como aluno → botão "Entrar na equipe" (R-101).
 
+**Robustez e privacidade da entrada em turmas**
+
+- **R-115** Concorrência: pedidos/convites simultâneos do mesmo aluno na mesma turma nunca viram 500. O repositório de entradas garante a unicidade (índice único parcial `entradas_turma_pendente_idx` no Postgres; checagem equivalente em memória) e sinaliza a violação com o erro de domínio `EntradaPendenteDuplicada`; o caso de uso o traduz em 409. `POST /aluno/turmas/entrar` e o cadastro por link (R-04) → 409 `SOLICITACAO_PENDENTE`; `POST /turmas/:id/convites` → 409 `CONVITE_JA_ENVIADO` (convite já pendente) ou `SOLICITACAO_PENDENTE` (o aluno já pedira). Só uma das requisições simultâneas cria a entrada (e a notificação).
+- **R-116** Privacidade da busca (`GET /turmas/:id/alunos-para-convite`, R-107): além do mínimo de 3 caracteres e do teto de 10 resultados, cada professor tem **limite de taxa de 30 buscas válidas por minuto** (janela deslizante, em memória, por id do professor). Estourou → 429 `MUITAS_BUSCAS` e a busca não é executada; voltar a buscar é liberado quando a janela esvazia. Buscas negadas (403/404) ou curtas demais (422) não consomem o limite. Decisão: o limite comporta a digitação normal do fluxo (com debounce) e torna a enumeração em massa de nomes/e-mails lenta e visível, sem exigir e-mail exato (isso quebraria a busca por nome). Risco residual aceito: o contador é por instância da API (reinicia no deploy e não é compartilhado entre réplicas); se a API escalar horizontalmente, mover o contador para o banco/Redis.
+- **R-117** `POST /turmas/:id/codigo` (docente dono; outro professor → 403, turma inexistente → 404, aluno → 403): gera um **novo código** de 6 caracteres e invalida o antigo (que passa a dar 404 `CONVITE_INVALIDO`, inclusive no link `/convite/:codigo` e no cadastro). Resposta 200: o DTO da turma do docente (R-102) com o novo `codigoConvite`. Matrículas, pedidos e convites pendentes não mudam. Se o código sorteado colidir com o UNIQUE de outra turma, sorteia de novo (até 5 tentativas; esgotadas → 503 `CODIGO_INDISPONIVEL`).
+- **R-118** `GET /aluno/solicitacoes`: pedidos de entrada pendentes **do próprio aluno** (origem código; nunca de outros alunos nem convites), mais recentes primeiro: `{ id, turma { id, nome, periodo, sigla, cor }, docente, criadoEm }`. Professor → 403.
+- **R-119** `DELETE /aluno/solicitacoes/:id`: o aluno cancela o próprio pedido pendente (204; a entrada fica `cancelada`, o docente deixa de vê-la em R-104 e o aluno pode pedir de novo). Pedido de outro aluno, inexistente ou que na verdade é convite → 404 `ENTRADA_NAO_ENCONTRADA`; já resolvido (aceito, recusado ou cancelado) → 409 `ENTRADA_JA_RESOLVIDA`. Não notifica o docente.
+
 ### Formulários (autoavaliações)
 - **R-20** Título obrigatório; turma deve ser do professor.
 - **R-21** Status: `rascunho`, `agendado`, `aberto`, `fechado`, `concluido`.
@@ -184,11 +192,14 @@ Erros: `{ "erro": { "codigo": "…", "mensagem": "…" } }` · 400 validação �
 | POST | `/api/aluno/turmas/entrar` | aluno | R-101, R-103 |
 | GET | `/api/aluno/convites` | aluno | R-109 |
 | POST | `/api/aluno/convites/:id/aceitar` · `/recusar` | aluno | R-110 |
+| GET | `/api/aluno/solicitacoes` | aluno | R-118 |
+| DELETE | `/api/aluno/solicitacoes/:id` | aluno | R-119 |
 | GET | `/api/turmas/:id/entradas` | prof | R-104 |
 | POST | `/api/turmas/:id/entradas/:entradaId/aceitar` · `/recusar` | prof | R-105, R-106 |
 | DELETE | `/api/turmas/:id/entradas/:entradaId` | prof | R-111 |
-| GET | `/api/turmas/:id/alunos-para-convite` | prof | R-107 |
+| GET | `/api/turmas/:id/alunos-para-convite` | prof | R-107, R-116 |
 | POST | `/api/turmas/:id/convites` | prof | R-108 |
+| POST | `/api/turmas/:id/codigo` | prof | R-117 |
 | GET | `/api/aluno/autoavaliacoes` | aluno | R-40, R-41, R-47 |
 | PUT | `/api/aluno/autoavaliacoes/:id/respostas/:perguntaId` | aluno | R-42, R-43 |
 | POST | `/api/aluno/autoavaliacoes/:id/enviar` | aluno | R-44…R-48 |

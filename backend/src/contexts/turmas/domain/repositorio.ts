@@ -4,6 +4,8 @@ export interface TurmaRepositorio {
   salvar(turma: Turma): Promise<void>
   porId(id: string): Promise<Turma | undefined>
   porCodigo(codigo: string): Promise<Turma | undefined>
+  /** R-117: troca o código da turma. `false` se outra turma já usa esse código (nada muda). */
+  trocarCodigo(turmaId: string, codigo: string): Promise<boolean>
   listarDoDocente(docenteId: string): Promise<Turma[]>
   listarDoAluno(alunoId: string): Promise<Turma[]>
   /** Remove a turma e as matrículas (formulários e envios são limpos pelo caso de uso). */

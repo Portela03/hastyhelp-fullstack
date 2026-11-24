@@ -32,6 +32,15 @@ export class TurmaRepositorioPg implements TurmaRepositorio {
       [t.id, t.nome, t.sigla, t.cor, t.periodo, t.docenteId, t.oculta, t.codigoConvite, t.criadaEm, t.aprovacaoManual],
     )
   }
+  async trocarCodigo(turmaId: string, codigo: string) {
+    try {
+      const r = await this.pool.query('UPDATE turmas SET codigo_convite = $2 WHERE id = $1', [turmaId, codigo])
+      return (r.rowCount ?? 0) > 0
+    } catch (erro) {
+      if (typeof erro === 'object' && erro !== null && 'code' in erro && erro.code === '23505') return false
+      throw erro
+    }
+  }
   async porId(id: string) {
     const r = await this.pool.query<Linha>('SELECT * FROM turmas WHERE id = $1', [id])
     return r.rows[0] ? paraTurma(r.rows[0]) : undefined

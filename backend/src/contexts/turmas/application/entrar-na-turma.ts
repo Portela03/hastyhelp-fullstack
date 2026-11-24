@@ -5,7 +5,7 @@ import type { GeradorId, Relogio } from '../../../shared/portas.ts'
 import { normalizarCodigo } from '../../../shared/texto.ts'
 import type { UsuarioRepositorio } from '../../identidade/domain/usuario.ts'
 import type { EmissorDeNotificacoes } from '../../notificacoes/application/emissor.ts'
-import { resolverEntrada } from '../domain/entrada.ts'
+import { EntradaPendenteDuplicada, resolverEntrada } from '../domain/entrada.ts'
 import type { EntradaRepositorio } from '../domain/entrada.ts'
 import type { TurmaRepositorio } from '../domain/repositorio.ts'
 import type { Turma } from '../domain/turma.ts'
@@ -41,7 +41,13 @@ export class EntrarNaTurma {
       await this.d.turmas.matricular(turma.id, aluno.id)
       return { status: 'matriculado', turma: resumo }
     }
-    await this.d.entradas.salvar({ id: this.d.ids.novo(), turmaId: turma.id, alunoId: aluno.id, origem: 'codigo', status: 'pendente', criadaEm: this.d.relogio.agora() })
+    try {
+      await this.d.entradas.salvar({ id: this.d.ids.novo(), turmaId: turma.id, alunoId: aluno.id, origem: 'codigo', status: 'pendente', criadaEm: this.d.relogio.agora() })
+    } catch (erro) {
+      // R-115: outra requisição do mesmo aluno (ou um convite) chegou primeiro
+      if (erro instanceof EntradaPendenteDuplicada) throw conflito('SOLICITACAO_PENDENTE', 'Você já pediu para entrar nesta equipe. Aguarde o professor.')
+      throw erro
+    }
     await this.d.emissor.emitir([turma.docenteId], {
       tipo: 'solicitacao-entrada',
       titulo: 'Novo pedido para entrar na equipe',
