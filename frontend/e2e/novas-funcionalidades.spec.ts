@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { caixaDeSaida, chamar, criarTurma, criarUsuario, entrarPelaUI, publicarFormulario, responderEEnviar, unico } from './apoio'
+import { caixaDeSaida, chamar, confirmarExclusao, criarTurma, criarUsuario, entrarPelaUI, publicarFormulario, responderEEnviar, unico } from './apoio'
 
 const abrirMenuDoAluno = (page: Page, nome: string) => page.getByRole('button', { name: `Ações de ${nome}` }).click()
 
@@ -211,9 +211,9 @@ test.describe('N09 - ações por aluno', () => {
     await entrarPelaUI(page, prof)
     await page.goto(`/equipes/${turma.id}/alunos`)
 
-    page.once('dialog', (d) => d.accept())
     await abrirMenuDoAluno(page, 'Sarah Chen')
     await page.getByRole('menuitem', { name: 'Remover da equipe' }).click()
+    await confirmarExclusao(page, 'Remover aluno')
     await expect(page.getByRole('heading', { name: 'Alunos (0)' }).or(page.getByRole('button', { name: 'Alunos (0)' }))).toBeVisible()
     await expect(page.getByText('Sarah Chen')).toHaveCount(0)
     expect(await chamar<unknown[]>('GET', '/aluno/turmas', undefined, aluno.token)).toEqual([])
@@ -224,9 +224,10 @@ test.describe('N09 - ações por aluno', () => {
     const { prof, turma } = await turmaComAluno()
     await entrarPelaUI(page, prof)
     await page.goto(`/equipes/${turma.id}/alunos`)
-    page.once('dialog', (d) => d.dismiss())
     await abrirMenuDoAluno(page, 'Sarah Chen')
     await page.getByRole('menuitem', { name: 'Remover da equipe' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Cancelar' }).click()
+    await expect(page.getByRole('dialog')).toHaveCount(0)
     await expect(page.getByText('Sarah Chen')).toBeVisible()
   })
 })
@@ -284,6 +285,6 @@ test.describe('RF05 - observações dos alunos', () => {
     await item.getByRole('button', { name: 'Ocultar' }).click()
     await expect(page.getByText('Todas as observações estão ocultas.')).toBeVisible()
     await page.getByRole('button', { name: 'Mostrar ocultas (1)' }).click()
-    await expect(page.getByRole('listitem').filter({ hasText: 'Mais exemplos reais, por favor' }).getByRole('button', { name: 'Mostrar', exact: true })).toBeVisible()
+    await expect(page.getByRole('listitem').filter({ hasText: 'Mais exemplos reais, por favor' }).getByRole('button', { name: 'Exibir', exact: true })).toBeVisible()
   })
 })

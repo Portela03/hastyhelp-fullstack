@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test'
-import { PERGUNTAS, chamar, criarTurma, criarUsuario, entrarPelaUI, publicarFormulario, unico } from './apoio'
+import { PERGUNTAS, chamar, confirmarExclusao, criarTurma, criarUsuario, entrarPelaUI, publicarFormulario, unico } from './apoio'
 
 test.describe('RF02 - professor gerencia equipes e formulários', () => {
   test('RF02/N07 - professor cria uma equipe', async ({ page }) => {
     const prof = await criarUsuario('professor', 'Alberto')
     await entrarPelaUI(page, prof)
     const nome = `Engenharia de Software ${unico()}`
-    await page.getByRole('button', { name: 'Criar equipe' }).click()
+    await page.getByRole('button', { name: 'Criar equipe' }).first().click()
     await page.getByLabel('Nome da equipe').fill(nome)
     await page.getByLabel('Período letivo').selectOption('2026/02')
     await page.getByRole('button', { name: 'Concluir' }).click()
@@ -16,7 +16,7 @@ test.describe('RF02 - professor gerencia equipes e formulários', () => {
   test('RF02 - criar equipe sem nome mostra erro', async ({ page }) => {
     const prof = await criarUsuario('professor', 'Alberto')
     await entrarPelaUI(page, prof)
-    await page.getByRole('button', { name: 'Criar equipe' }).click()
+    await page.getByRole('button', { name: 'Criar equipe' }).first().click()
     await page.getByRole('button', { name: 'Concluir' }).click()
     await expect(page.getByRole('alert')).toContainText('Informe o nome e o período')
   })
@@ -43,9 +43,9 @@ test.describe('RF02 - professor gerencia equipes e formulários', () => {
     const prof = await criarUsuario('professor', 'Alberto')
     const turma = await criarTurma(prof, `Apagar ${unico()}`)
     await entrarPelaUI(page, prof)
-    page.once('dialog', (d) => d.accept())
     await page.getByRole('button', { name: `Opções da equipe ${turma.nome}` }).click()
     await page.getByRole('menuitem', { name: 'Excluir' }).click()
+    await confirmarExclusao(page)
     await expect(page.getByRole('link', { name: `Abrir equipe ${turma.nome}` })).toHaveCount(0)
     await expect(chamar('GET', `/turmas/${turma.id}`, undefined, prof.token)).rejects.toThrow(/404/)
   })
@@ -57,23 +57,25 @@ test.describe('RF02 - professor gerencia equipes e formulários', () => {
     await page.goto('/avaliacoes')
 
     const titulo = `Média, mediana e moda ${unico()}`
-    await page.getByRole('button', { name: 'Criar formulário' }).click()
+    await page.getByRole('button', { name: 'Criar formulário' }).first().click()
     await page.getByLabel('Nome do Formulário').fill(titulo)
     await page.getByLabel('Postar ao criar formulário').check()
     await page.getByLabel('Prazo para responder (opcional)').fill('31/12/30')
     await page.getByLabel('Liberar o gabarito para os alunos').check()
 
+    // as alternativas são fixas (escala I/P/C); o professor só escreve o enunciado
     await page.getByRole('button', { name: '+ Adicionar' }).click()
+    await page.getByRole('button', { name: 'Editar pergunta 1' }).click()
     await page.getByLabel('Enunciado da pergunta 1').fill('Qual é a média de 2 e 4?')
-    await page.getByLabel('Opção 1 da pergunta 1', { exact: true }).fill('3')
-    await page.getByLabel('Opção 2 da pergunta 1', { exact: true }).fill('4')
-    await page.getByLabel('Opção 1 da pergunta 1 é correta').check()
+    await page.getByRole('button', { name: 'Salvar pergunta 1' }).click()
     await page.getByRole('button', { name: 'Criar', exact: true }).click()
 
     await expect(page.getByRole('link', { name: `Abrir formulário ${titulo}` })).toBeVisible()
-    const [criado] = await chamar<Array<{ titulo: string; status: string; mostrarGabarito: boolean; prazo: string; perguntas: Array<{ gabarito: number[] }> }>>('GET', `/formularios?turmaId=${turma.id}`, undefined, prof.token)
+    const [criado] = await chamar<Array<{ titulo: string; status: string; mostrarGabarito: boolean; prazo: string; perguntas: Array<{ enunciado: string; opcoes: string[] }> }>>('GET', `/formularios?turmaId=${turma.id}`, undefined, prof.token)
     expect(criado).toMatchObject({ titulo, status: 'aberto', mostrarGabarito: true })
-    expect(criado?.perguntas[0]?.gabarito).toEqual([0])
+    expect(criado?.perguntas).toHaveLength(1)
+    expect(criado?.perguntas[0]).toMatchObject({ enunciado: 'Qual é a média de 2 e 4?' })
+    expect(criado?.perguntas[0]?.opcoes).toHaveLength(4)
     expect(criado?.prazo).toMatch(/^2030-12-31|^2031-01-01/)
   })
 
@@ -82,7 +84,7 @@ test.describe('RF02 - professor gerencia equipes e formulários', () => {
     await criarTurma(prof)
     await entrarPelaUI(page, prof)
     await page.goto('/avaliacoes')
-    await page.getByRole('button', { name: 'Criar formulário' }).click()
+    await page.getByRole('button', { name: 'Criar formulário' }).first().click()
     await page.getByLabel('Nome do Formulário').fill('Sem perguntas')
     await page.getByLabel('Postar ao criar formulário').check()
     await page.getByRole('button', { name: 'Criar', exact: true }).click()
@@ -95,14 +97,14 @@ test.describe('RF02 - professor gerencia equipes e formulários', () => {
     await entrarPelaUI(page, prof)
     await page.goto('/avaliacoes')
     const titulo = `Agendado ${unico()}`
-    await page.getByRole('button', { name: 'Criar formulário' }).click()
+    await page.getByRole('button', { name: 'Criar formulário' }).first().click()
     await page.getByLabel('Nome do Formulário').fill(titulo)
     await page.getByLabel('Data de publicação').fill('01/01/30')
     await page.getByLabel('Horário').fill('08:30')
     await page.getByRole('button', { name: '+ Adicionar' }).click()
+    await page.getByRole('button', { name: 'Editar pergunta 1' }).click()
     await page.getByLabel('Enunciado da pergunta 1').fill('Pergunta?')
-    await page.getByLabel('Opção 1 da pergunta 1', { exact: true }).fill('Sim')
-    await page.getByLabel('Opção 2 da pergunta 1', { exact: true }).fill('Não')
+    await page.getByRole('button', { name: 'Salvar pergunta 1' }).click()
     await page.getByRole('button', { name: 'Criar', exact: true }).click()
     await expect(page.getByRole('link', { name: `Abrir formulário ${titulo}` })).toBeVisible()
     const [f] = await chamar<Array<{ status: string }>>('GET', `/formularios?turmaId=${turma.id}`, undefined, prof.token)
@@ -129,9 +131,9 @@ test.describe('RF02 - professor gerencia equipes e formulários', () => {
     await page.getByRole('menuitem', { name: 'Marcar como concluído' }).click()
     await expect(linha).toContainText('Concluído')
 
-    page.once('dialog', (d) => d.accept())
     await abrirMenu()
     await page.getByRole('menuitem', { name: 'Excluir' }).click()
+    await confirmarExclusao(page)
     await expect(linha).toHaveCount(0)
   })
 
