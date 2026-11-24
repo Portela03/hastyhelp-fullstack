@@ -42,7 +42,7 @@ export class GeradorIdSistema implements GeradorId {
     return randomUUID()
   }
   codigo() {
-    const bytes = randomBytes(8)
+    const bytes = randomBytes(6)
     return Array.from(bytes, (b) => ALFABETO[b % ALFABETO.length]).join('')
   }
 }

@@ -4,6 +4,7 @@ import type { CaixaDeSaida, RedefinicaoRepositorio, SessaoRepositorio } from '..
 import type { UsuarioRepositorio } from '../contexts/identidade/domain/usuario.ts'
 import type { NotificacaoRepositorio } from '../contexts/notificacoes/domain/notificacao.ts'
 import type { EnvioRepositorio } from '../contexts/respostas/domain/repositorio.ts'
+import type { EntradaRepositorio } from '../contexts/turmas/domain/entrada.ts'
 import type { TurmaRepositorio } from '../contexts/turmas/domain/repositorio.ts'
 import type { GeradorId, Relogio } from '../shared/portas.ts'
 
@@ -11,6 +12,7 @@ import type { GeradorId, Relogio } from '../shared/portas.ts'
 export interface Infra {
   usuarios: UsuarioRepositorio
   turmas: TurmaRepositorio
+  entradas: EntradaRepositorio
   formularios: FormularioRepositorio
   envios: EnvioRepositorio
   sessoes: SessaoRepositorio

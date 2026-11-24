@@ -4,6 +4,7 @@ import { CaixaDeSaidaMemoria, RedefinicaoRepositorioMemoria, SessaoRepositorioMe
 import { UsuarioRepositorioMemoria } from '../contexts/identidade/infra/usuario-repositorio-memoria.ts'
 import { NotificacaoRepositorioMemoria } from '../contexts/notificacoes/infra/notificacao-repositorio-memoria.ts'
 import { EnvioRepositorioMemoria } from '../contexts/respostas/infra/envio-repositorio-memoria.ts'
+import { EntradaRepositorioMemoria } from '../contexts/turmas/infra/entrada-repositorio-memoria.ts'
 import { TurmaRepositorioMemoria } from '../contexts/turmas/infra/turma-repositorio-memoria.ts'
 import { relogioSistema } from '../shared/portas.ts'
 import type { Relogio } from '../shared/portas.ts'
@@ -17,6 +18,7 @@ export function criarInfraMemoria(opcoes: { relogio?: Relogio; segredo?: string;
   return {
     usuarios: new UsuarioRepositorioMemoria(),
     turmas: new TurmaRepositorioMemoria(),
+    entradas: new EntradaRepositorioMemoria(),
     formularios: new FormularioRepositorioMemoria(),
     envios: new EnvioRepositorioMemoria(),
     sessoes: new SessaoRepositorioMemoria(),

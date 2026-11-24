@@ -37,7 +37,9 @@ const ESQ = {
     })
     .partial(),
   turma: z.object({ nome: z.string(), periodo: z.string(), sigla: z.string().optional(), cor: z.string().optional() }),
-  turmaEdicao: z.object({ nome: z.string(), periodo: z.string(), sigla: z.string(), cor: z.string(), oculta: z.boolean() }).partial(),
+  turmaEdicao: z.object({ nome: z.string(), periodo: z.string(), sigla: z.string(), cor: z.string(), oculta: z.boolean(), aprovacaoManual: z.boolean() }).partial(),
+  entrarPorCodigo: z.object({ codigo: z.string() }),
+  convidarAluno: z.object({ alunoId: z.string().min(1) }),
   formulario: z.object({
     titulo: z.string(),
     turmaId: z.string(),
@@ -194,6 +196,25 @@ export function criarApp({ uc, infra }: Container, opcoes: { exporCaixaDeSaida?:
   professor.post('/turmas/:id/alunos/:alunoId/redefinir-senha', rota(async (req, res) => {
     res.json(await uc.turmas.gerarLinkDeRedefinicao.executar(atorDe(res), param(req, 'id'), param(req, 'alunoId')))
   }))
+  professor.get('/turmas/:id/entradas', rota(async (req, res) => void res.json(await uc.turmas.listarEntradas.executar(atorDe(res), param(req, 'id')))))
+  professor.post('/turmas/:id/entradas/:entradaId/aceitar', rota(async (req, res) => {
+    await uc.turmas.responderSolicitacao.executar(atorDe(res), param(req, 'id'), param(req, 'entradaId'), 'aceitar')
+    res.status(204).end()
+  }))
+  professor.post('/turmas/:id/entradas/:entradaId/recusar', rota(async (req, res) => {
+    await uc.turmas.responderSolicitacao.executar(atorDe(res), param(req, 'id'), param(req, 'entradaId'), 'recusar')
+    res.status(204).end()
+  }))
+  professor.delete('/turmas/:id/entradas/:entradaId', rota(async (req, res) => {
+    await uc.turmas.cancelarConvite.executar(atorDe(res), param(req, 'id'), param(req, 'entradaId'))
+    res.status(204).end()
+  }))
+  professor.get('/turmas/:id/alunos-para-convite', rota(async (req, res) => {
+    res.json(await uc.turmas.buscarAlunos.executar(atorDe(res), param(req, 'id'), String(req.query.busca ?? '')))
+  }))
+  professor.post('/turmas/:id/convites', rota(async (req, res) => {
+    res.status(201).json(await uc.turmas.convidarAluno.executar(atorDe(res), param(req, 'id'), ESQ.convidarAluno.parse(req.body).alunoId))
+  }))
   professor.get('/turmas/:id/resumo', rota(async (req, res) => void res.json(await uc.analise.resumoTurma.executar(atorDe(res), param(req, 'id')))))
 
   professor.get('/formularios', rota(async (req, res) => {
@@ -229,6 +250,19 @@ export function criarApp({ uc, infra }: Container, opcoes: { exporCaixaDeSaida?:
   const aluno = express.Router()
   aluno.use('/aluno', autenticado, apenas('aluno'))
   aluno.get('/aluno/turmas', rota(async (_req, res) => void res.json(await uc.turmas.listar.executar(atorDe(res)))))
+  aluno.post('/aluno/turmas/entrar', rota(async (req, res) => {
+    const r = await uc.turmas.entrarPorCodigo.executar(atorDe(res), ESQ.entrarPorCodigo.parse(req.body).codigo)
+    res.status(r.status === 'matriculado' ? 201 : 202).json(r)
+  }))
+  aluno.get('/aluno/convites', rota(async (_req, res) => void res.json(await uc.turmas.listarConvites.executar(atorDe(res)))))
+  aluno.post('/aluno/convites/:id/aceitar', rota(async (req, res) => {
+    await uc.turmas.responderConvite.executar(atorDe(res), param(req, 'id'), 'aceitar')
+    res.status(204).end()
+  }))
+  aluno.post('/aluno/convites/:id/recusar', rota(async (req, res) => {
+    await uc.turmas.responderConvite.executar(atorDe(res), param(req, 'id'), 'recusar')
+    res.status(204).end()
+  }))
   aluno.delete('/aluno/turmas/:id', rota(async (req, res) => {
     await uc.turmas.sairDaEquipe.executar(atorDe(res), param(req, 'id'))
     res.status(204).end()

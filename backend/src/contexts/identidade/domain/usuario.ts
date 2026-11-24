@@ -41,6 +41,8 @@ export interface UsuarioRepositorio {
   porId(id: string): Promise<Usuario | undefined>
   porEmail(email: string): Promise<Usuario | undefined>
   porIds(ids: string[]): Promise<Usuario[]>
+  /** Alunos cujo nome ou e-mail contém `termo` (já normalizado: minúsculas, sem acentos), ordenados por nome. */
+  buscarAlunos(termo: string, excluirIds: string[], limite: number): Promise<Usuario[]>
 }
 
 /** Mescla parcialmente as preferências, validando tipos e tema (R-06). */

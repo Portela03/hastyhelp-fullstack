@@ -9,7 +9,7 @@ export function turmaDTO(t: Turma, docente: string, mostrarConvite: boolean) {
     periodo: t.periodo as string,
     docente,
     oculta: t.oculta,
-    ...(mostrarConvite ? { codigoConvite: t.codigoConvite } : {}),
+    ...(mostrarConvite ? { codigoConvite: t.codigoConvite, aprovacaoManual: t.aprovacaoManual } : {}),
   }
 }
-export type TurmaDTO = ReturnType<typeof turmaDTO> & { codigoConvite: string }
+export type TurmaDTO = ReturnType<typeof turmaDTO> & { codigoConvite: string; aprovacaoManual: boolean }

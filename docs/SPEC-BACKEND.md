@@ -30,8 +30,9 @@ Regras de dependência: `http → application → domain`; `infra` implementa in
 | Tabela | Colunas principais |
 |---|---|
 | `usuarios` | id, nome, email (único), senha_hash, papel (`professor`/`aluno`), preferencias (jsonb), criado_em |
-| `turmas` | id, nome, sigla, cor, periodo, docente_id → usuarios, oculta, codigo_convite (único), criada_em |
+| `turmas` | id, nome, sigla, cor, periodo, docente_id → usuarios, oculta, aprovacao_manual, codigo_convite (único), criada_em |
 | `matriculas` | turma_id, aluno_id (PK composta) |
+| `entradas_turma` | id, turma_id, aluno_id, origem (`codigo`/`convite`), status (`pendente`/`aceita`/`recusada`/`cancelada`), criada_em, resolvida_em · único pendente por (turma_id, aluno_id) |
 | `formularios` | id, titulo, turma_id, status, publicar_em, publicado_em, prazo, mostrar_gabarito, criado_em |
 | `perguntas` | id, formulario_id, ordem, enunciado, tipo (`unica`/`multipla`), opcoes (jsonb), gabarito (jsonb) |
 | `envios` | id, formulario_id, aluno_id, turma_id, status (`rascunho`/`enviado`), respostas (jsonb), nota, compreensao, observacao, observacao_oculta, resposta_professor, respondida_em, enviado_em, atualizado_em · único (formulario_id, aluno_id) |
@@ -54,7 +55,7 @@ Exclusões em cascata: turma → matrículas, formulários → perguntas, envios
 - **R-01** E-mail válido, normalizado em minúsculas; único (409 `EMAIL_EM_USO`).
 - **R-02** Senha com no mínimo 8 caracteres.
 - **R-03** Cadastro exige nome, e-mail, senha e papel. Senha e confirmação devem coincidir quando a confirmação é enviada.
-- **R-04** Aluno que se cadastra com `codigoConvite` válido é matriculado na turma; código inexistente → 422 `CONVITE_INVALIDO` e o cadastro **não** é feito.
+- **R-04** Aluno que se cadastra com `codigoConvite` válido é matriculado na turma (ou fica com solicitação pendente se a turma tem `aprovacaoManual`, R-103); código inexistente → 422 `CONVITE_INVALIDO` e o cadastro **não** é feito.
 - **R-05** Login com credenciais erradas ou `papel` diferente do cadastrado → 401 `CREDENCIAIS_INVALIDAS` (mesma mensagem para e-mail inexistente e senha errada).
 - **R-06** Preferências do perfil (`notificacoesEmail`, `conclusaoFormularios`, `publicacaoFormularios`, `metricasTrimestrais`, `metricasSemestrais`, `acessibilidade`, `tema: claro|escuro|alto-contraste`) são persistidas por usuário; atualização parcial.
 
@@ -75,8 +76,27 @@ Exclusões em cascata: turma → matrículas, formulários → perguntas, envios
 - **R-14** Ocultar não apaga nada: a turma some da lista principal e aparece em "ocultas" (`oculta: true`).
 - **R-15** Excluir turma remove matrículas, formulários e envios.
 - **R-16** Matricular o mesmo aluno duas vezes é idempotente.
-- **R-17** `GET /auth/convites/:codigo` devolve nome/período da turma sem exigir login; código inválido → 404.
+- **R-17** `GET /auth/convites/:codigo` devolve nome, período e `aprovacaoManual` da turma sem exigir login; código inválido → 404.
 - **R-18** O docente dono remove um aluno da turma (`DELETE /turmas/:id/alunos/:alunoId`): somem a matrícula e os envios dele **nessa turma**; o aluno deixa de ver a turma e seus formulários. Aluno que não está na turma → 404; outro professor → 403.
+
+### Entrada em turmas (RF01, RF02) — membros por código e por e-mail
+Motivação: o link de convite só servia para quem ainda não tinha conta; quem já estava logado ficava preso a uma única turma. Agora um aluno com conta entra em quantas turmas quiser, por **código**, por **convite do professor** ou pelo **link** (já logado).
+
+- **R-100** O código da turma tem **6 caracteres** (letras minúsculas e dígitos sem ambiguidade). A busca ignora maiúsculas/minúsculas e espaços nas pontas; turmas antigas continuam valendo com o código que já têm. Código inexistente → 404 `CONVITE_INVALIDO`.
+- **R-101** `POST /aluno/turmas/entrar { codigo }`: aluno logado entra numa turma pelo código. Modo automático (padrão) → matrícula imediata (`{ status: 'matriculado', turma }`, 201). Já matriculado → 409 `JA_NA_TURMA`. Professor → 403.
+- **R-102** A turma tem `aprovacaoManual` (padrão `false`). Só o docente dono altera (R-13), via `PATCH /turmas/:id`. O DTO do aluno não expõe o código nem essa flag.
+- **R-103** Com `aprovacaoManual`, entrar pelo código (ou cadastrar-se por link, R-04) cria uma **solicitação pendente** (`{ status: 'pendente', turma }`, 202) em vez de matricular, e notifica o docente (`solicitacao-entrada`). Pedir de novo enquanto pendente → 409 `SOLICITACAO_PENDENTE`. Depois de recusada, o aluno pode pedir de novo.
+- **R-104** `GET /turmas/:id/entradas` (docente dono): `{ solicitacoes, convites }` pendentes, cada item com `id`, `aluno { id, nome, email }` e `criadaEm`.
+- **R-105** `POST /turmas/:id/entradas/:entradaId/aceitar|recusar` (docente dono) só para **solicitações** pendentes. Entrada de outra turma ou inexistente → 404 `ENTRADA_NAO_ENCONTRADA`; já resolvida → 409 `ENTRADA_JA_RESOLVIDA`; é um convite → 422 `ORIGEM_INVALIDA`.
+- **R-106** Aceitar matricula o aluno (R-16 idempotente) e notifica o aluno (`entrada-resolvida`); recusar apenas notifica.
+- **R-107** `GET /turmas/:id/alunos-para-convite?busca=` (docente dono): procura **alunos** cadastrados por nome ou e-mail (sem diferenciar maiúsculas/acentos), mínimo 3 caracteres (senão 422 `BUSCA_CURTA`), no máximo 10 resultados, excluindo quem já está na turma. Cada resultado traz `id`, `nome`, `email` e `convidado` (há convite pendente). Professores nunca aparecem.
+- **R-108** `POST /turmas/:id/convites { alunoId }` (docente dono): cria convite pendente (201 `{ id }`) e notifica o aluno (`convite-turma`). Aluno inexistente (ou que não é aluno) → 404 `ALUNO_NAO_ENCONTRADO`; já na turma → 409 `JA_NA_TURMA`; convite pendente → 409 `CONVITE_JA_ENVIADO`; o aluno já pediu para entrar → 409 `SOLICITACAO_PENDENTE`.
+- **R-109** `GET /aluno/convites`: convites pendentes **do próprio aluno** (turma, docente, data). Nunca os de outros alunos.
+- **R-110** `POST /aluno/convites/:id/aceitar|recusar`: aceitar matricula e notifica o docente (`entrada-resolvida`); recusar notifica o docente. Convite de outro aluno ou inexistente → 404 `ENTRADA_NAO_ENCONTRADA`; já resolvido → 409 `ENTRADA_JA_RESOLVIDA`.
+- **R-111** `DELETE /turmas/:id/entradas/:entradaId` (docente dono) cancela um **convite** pendente (o aluno deixa de vê-lo). Solicitação → 422 `ORIGEM_INVALIDA`.
+- **R-112** Excluir a turma apaga suas entradas (cascata). Remover o aluno (R-18) ou ele sair da equipe não bloqueia novo convite/entrada depois.
+- **R-113** Notificações novas: `convite-turma` (aluno), `solicitacao-entrada` (docente), `entrada-resolvida` (quem aguardava). Respeitam `notificacoesEmail` como as demais (R-81…R-84); convites e pedidos pendentes também aparecem nas telas, então não dependem do sino.
+- **R-114** Front: `/convite/:codigo` mostra a turma; sem conta → cadastro (ou login que volta ao convite); já logado como aluno → botão "Entrar na equipe" (R-101).
 
 ### Formulários (autoavaliações)
 - **R-20** Título obrigatório; turma deve ser do professor.
@@ -120,7 +140,7 @@ Exclusões em cascata: turma → matrículas, formulários → perguntas, envios
 - **R-97** Só o docente dono; envio sem observação → 422 `SEM_OBSERVACAO`; envio inexistente → 404.
 
 ### Notificações (sino)
-- **R-80** Notificação = usuário, tipo (`publicacao`, `lembrete`, `conclusao`, `resposta-observacao`), título, mensagem, link e `lidaEm`.
+- **R-80** Notificação = usuário, tipo (`publicacao`, `lembrete`, `conclusao`, `resposta-observacao`, `convite-turma`, `solicitacao-entrada`, `entrada-resolvida`), título, mensagem, link e `lidaEm`.
 - **R-81** Quando um formulário passa a `aberto` (criar com `postar`, publicar, "postar agora", agendamento que venceu) cada aluno da turma recebe `publicacao`, se tiver `notificacoesEmail` e `publicacaoFormularios` ligados.
 - **R-82** *Notificar pendentes* gera `lembrete` para quem ainda não enviou, se o aluno tiver `notificacoesEmail` ligado.
 - **R-83** Quando todos os alunos da turma enviaram um formulário, o docente dono recebe `conclusao`, se tiver `notificacoesEmail` e `conclusaoFormularios` ligados.
@@ -161,6 +181,14 @@ Erros: `{ "erro": { "codigo": "…", "mensagem": "…" } }` · 400 validação �
 | POST | `/api/formularios/:id/notificar-pendentes` | prof | R-58 |
 | GET | `/api/metricas` | prof | R-57 |
 | GET | `/api/aluno/turmas` | aluno | R-40 |
+| POST | `/api/aluno/turmas/entrar` | aluno | R-101, R-103 |
+| GET | `/api/aluno/convites` | aluno | R-109 |
+| POST | `/api/aluno/convites/:id/aceitar` · `/recusar` | aluno | R-110 |
+| GET | `/api/turmas/:id/entradas` | prof | R-104 |
+| POST | `/api/turmas/:id/entradas/:entradaId/aceitar` · `/recusar` | prof | R-105, R-106 |
+| DELETE | `/api/turmas/:id/entradas/:entradaId` | prof | R-111 |
+| GET | `/api/turmas/:id/alunos-para-convite` | prof | R-107 |
+| POST | `/api/turmas/:id/convites` | prof | R-108 |
 | GET | `/api/aluno/autoavaliacoes` | aluno | R-40, R-41, R-47 |
 | PUT | `/api/aluno/autoavaliacoes/:id/respostas/:perguntaId` | aluno | R-42, R-43 |
 | POST | `/api/aluno/autoavaliacoes/:id/enviar` | aluno | R-44…R-48 |

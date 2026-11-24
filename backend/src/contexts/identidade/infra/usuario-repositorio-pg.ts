@@ -15,6 +15,10 @@ const paraUsuario = (l: Linha): Usuario => ({
   id: l.id, nome: l.nome, email: l.email, senhaHash: l.senha_hash, papel: l.papel, preferencias: l.preferencias, criadoEm: l.criado_em,
 })
 
+const COM_ACENTO = 'áàâãäéèêëíìîïóòôõöúùûüçñ'
+const SEM_ACENTO = 'aaaaaeeeeiiiiooooouuuucn'
+const SEM_ACENTOS_SQL = (coluna: string) => `translate(lower(${coluna}), '${COM_ACENTO}', '${SEM_ACENTO}')`
+
 export class UsuarioRepositorioPg implements UsuarioRepositorio {
   constructor(private readonly pool: pg.Pool) {}
 
@@ -37,6 +41,17 @@ export class UsuarioRepositorioPg implements UsuarioRepositorio {
   async porIds(ids: string[]) {
     if (ids.length === 0) return []
     const r = await this.pool.query<Linha>('SELECT * FROM usuarios WHERE id = ANY($1)', [ids])
+    return r.rows.map(paraUsuario)
+  }
+  async buscarAlunos(termo: string, excluirIds: string[], limite: number) {
+    const padrao = `%${termo.replace(/[\\%_]/g, (c) => `\\${c}`)}%`
+    const r = await this.pool.query<Linha>(
+      `SELECT * FROM usuarios
+       WHERE papel = 'aluno' AND NOT (id = ANY($2))
+         AND (${SEM_ACENTOS_SQL('nome')} LIKE $1 OR ${SEM_ACENTOS_SQL('email')} LIKE $1)
+       ORDER BY nome, id LIMIT $3`,
+      [padrao, excluirIds, limite],
+    )
     return r.rows.map(paraUsuario)
   }
 }
