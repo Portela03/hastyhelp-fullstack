@@ -45,7 +45,7 @@ export const FAQ_INICIAL: PerguntaFaq[] = [
     id: 'faq-01',
     pergunta: 'Como entro na minha turma?',
     resposta:
-      'O professor envia um link de convite. Abra o link e faça o cadastro com nome, e-mail e senha. Se o link aparecer como inválido ou expirado, peça um novo ao professor.',
+      'Sem conta: abra o link de convite do professor e faça o cadastro. Com conta: entre no sistema e use Entrar em equipe (em Equipes) com o código de 6 caracteres que o professor passou, ou aceite o convite que aparece em Equipes. Se a equipe exigir aprovação, o professor precisa aceitar seu pedido. Se o link ou o código forem inválidos, peça um novo ao professor.',
     publico: 'aluno',
   },
   {
@@ -93,7 +93,7 @@ export const FAQ_INICIAL: PerguntaFaq[] = [
     id: 'faq-08',
     pergunta: 'Como crio uma equipe e convido os alunos?',
     resposta:
-      'Em Equipes, use Criar equipe e informe nome e período letivo. Os alunos entram pelo link de convite ou pela aba Alunos da equipe.',
+      'Em Equipes, use Criar equipe e informe nome e período letivo. Depois, no menu ⋮ da equipe, escolha Adicionar membros: pela aba Código você passa o código (ou o link) aos alunos e pode exigir sua aprovação; pela aba Email você procura um aluno já cadastrado e envia um convite.',
     publico: 'professor',
   },
   {

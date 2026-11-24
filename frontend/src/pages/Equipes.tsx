@@ -6,6 +6,7 @@ import dotP from '../assets/figma/dot-p.svg'
 import sortIcon from '../assets/figma/sort.svg'
 import { AppShell, Banner, BannerStat, DataTable, Section, TabBar, Toolbar } from '../components/layout'
 import { CriarEquipeModal, EditarEquipeModal, CriarFormularioModal, EditarFormularioModal, ExcluirModal } from '../components/modals'
+import { AdicionarMembrosModal } from '../components/modals-membros'
 import { LinkDeRedefinicaoModal, RespostasDoAlunoModal } from '../components/modals-alunos'
 import { Avatar, ButtonPrimary, DifficultyLetter, FilterSelect, KpiCard, Panel, ProgressBar, SearchBox, StatusPill, SortButton, TeamBadge, cx, OptionsMenu } from '../components/ui'
 import { api } from '../api/client'
@@ -25,6 +26,7 @@ function TeamCard({ equipe, onEditar, onAlternarVisibilidade }: TeamCardProps) {
   const navigate = useNavigate()
   const { removerEquipe } = useStore()
   const [equipeExcluindo, setEquipeExcluindo] = useState<Equipe | null>(null)
+  const [adicionandoMembros, setAdicionandoMembros] = useState(false)
   const abrir = () => navigate(`/equipes/${equipe.id}`)
   return (
     <>
@@ -56,6 +58,11 @@ function TeamCard({ equipe, onEditar, onAlternarVisibilidade }: TeamCardProps) {
               label={`Opções da equipe ${equipe.nome}`}
               items={[
                 {
+                  label: 'Adicionar membros',
+                  icon: 'person_add',
+                  onClick: () => setAdicionandoMembros(true),
+                },
+                {
                   label: 'Editar',
                   icon: 'edit',
                   onClick: () => onEditar(equipe),
@@ -84,6 +91,8 @@ function TeamCard({ equipe, onEditar, onAlternarVisibilidade }: TeamCardProps) {
           <ProgressBar value={equipe.taxaResposta} label="Taxa de resposta" />
         </div>
       </article>
+
+      {adicionandoMembros && <AdicionarMembrosModal equipe={equipe} onClose={() => setAdicionandoMembros(false)} />}
 
       {equipeExcluindo && (
         <ExcluirModal
@@ -235,6 +244,7 @@ export function EquipeDetalhe() {
   const navigate = useNavigate()
   const equipe = equipes.find((e) => e.id === id)
   const [editar, setEditar] = useState(false)
+  const [adicionandoMembros, setAdicionandoMembros] = useState(false)
   const [equipeExcluindo, setEquipeExcluindo] = useState<Equipe | null>(null)
   if (!equipe) return <Navigate to="/equipes" replace />
 
@@ -247,6 +257,11 @@ export function EquipeDetalhe() {
           <OptionsMenu
             label={`Opções da equipe ${equipe.nome}`}
             items={[
+              {
+                label: 'Adicionar membros',
+                icon: 'person_add',
+                onClick: () => setAdicionandoMembros(true),
+              },
               {
                 label: 'Editar equipe',
                 icon: 'edit',
@@ -289,6 +304,7 @@ export function EquipeDetalhe() {
       />
       <Outlet context={equipe} />
       {editar && <EditarEquipeModal equipe={equipe} onClose={() => setEditar(false)} />}
+      {adicionandoMembros && <AdicionarMembrosModal equipe={equipe} onClose={() => setAdicionandoMembros(false)} />}
 
       {equipeExcluindo && (
         <ExcluirModal
@@ -607,6 +623,7 @@ export function EquipeAlunos() {
   const [respostasDe, setRespostasDe] = useState<{ id: string; nome: string } | null>(null)
   const [linkDe, setLinkDe] = useState<{ nome: string; link: string } | null>(null)
   const [alunoRemovendo, setAlunoRemovendo] = useState<{ id: string; nome: string } | null>(null)
+  const [adicionandoMembros, setAdicionandoMembros] = useState(false)
   if (erro) return <p role="alert" className="text-[16px] text-diff-c">{erro}</p>
   const docentes = dados?.docentes ?? []
   const alunos = dados?.alunos ?? []
@@ -621,9 +638,15 @@ export function EquipeAlunos() {
     <div className="flex flex-col gap-4">
       {respostasDe && <RespostasDoAlunoModal nome={respostasDe.nome} caminho={`/turmas/${equipe.id}/alunos/${respostasDe.id}/respostas`} onClose={() => setRespostasDe(null)} />}
       {linkDe && <LinkDeRedefinicaoModal nome={linkDe.nome} link={linkDe.link} onClose={() => setLinkDe(null)} />}
+      {adicionandoMembros && <AdicionarMembrosModal equipe={equipe} onClose={() => setAdicionandoMembros(false)} />}
       {equipe.codigoConvite && (
         <AlunosSecao titulo="Convidar alunos">
           <LinkDeConvite codigo={equipe.codigoConvite} />
+          <div>
+            <ButtonPrimary icon="person_add" onClick={() => setAdicionandoMembros(true)} className="!bg-btn-brown hover:!bg-btn-brown-hover !text-[16px]">
+              Adicionar membros
+            </ButtonPrimary>
+          </div>
         </AlunosSecao>
       )}
 
@@ -650,7 +673,7 @@ export function EquipeAlunos() {
       </AlunosSecao>
       <AlunosSecao titulo={`Alunos (${alunos.length})`}>
         {alunos.length === 0 ? (
-          <p className="px-3 py-2 text-[16px] text-muted">Nenhum aluno na equipe ainda. Compartilhe o link de convite acima.</p>
+          <p className="px-3 py-2 text-[16px] text-muted">Nenhum aluno na equipe ainda. Use “Adicionar membros” acima (código ou e-mail).</p>
         ) : (
           <DataTable
             cabecalhoAlto

@@ -29,6 +29,8 @@ export interface Equipe {
   oculta?: boolean
   /** Código do link de convite (só o professor vê). */
   codigoConvite?: string
+  /** Entrada por código/link só vale depois do aceite do professor (só o professor vê). */
+  aprovacaoManual?: boolean
 }
 
 export interface Formulario {

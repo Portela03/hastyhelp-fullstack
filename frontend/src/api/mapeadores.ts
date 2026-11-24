@@ -36,6 +36,7 @@ export interface TurmaDTO {
   docente: string
   oculta: boolean
   codigoConvite?: string
+  aprovacaoManual?: boolean
   totalAlunos?: number
   taxaResposta?: number
   dominioMedio?: number | null
@@ -103,6 +104,7 @@ export const paraEquipe = (t: TurmaDTO): Equipe => ({
   engajamento: t.engajamento ?? 0,
   oculta: t.oculta,
   ...(t.codigoConvite ? { codigoConvite: t.codigoConvite } : {}),
+  ...(t.aprovacaoManual !== undefined ? { aprovacaoManual: t.aprovacaoManual } : {}),
 })
 
 export const paraFormulario = (f: FormularioDTO, equipes: Equipe[]): Formulario => ({

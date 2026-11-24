@@ -286,6 +286,45 @@ export function ButtonGhost({ children, className, ...rest }: BtnProps) {
   )
 }
 
+/* Abas segmentadas (ex.: Código | Email no modal Adicionar membros) */
+
+export function SegmentedTabs<T extends string>({
+  rotulo,
+  abas,
+  ativa,
+  onChange,
+  idPainel,
+}: {
+  rotulo: string
+  abas: Array<{ id: T; label: string }>
+  ativa: T
+  onChange: (id: T) => void
+  /** id do painel exibido, para ligar as abas a ele (acessibilidade). */
+  idPainel?: string
+}) {
+  return (
+    <div role="tablist" aria-label={rotulo} className="flex w-full overflow-hidden rounded-lg border border-ink bg-white">
+      {abas.map((a) => (
+        <button
+          key={a.id}
+          type="button"
+          role="tab"
+          id={`aba-${a.id}`}
+          aria-selected={ativa === a.id}
+          aria-controls={idPainel}
+          onClick={() => onChange(a.id)}
+          className={cx(
+            'flex-1 cursor-pointer px-3 py-2 text-[20px] transition duration-100',
+            ativa === a.id ? 'bg-btn-brown font-medium text-ink' : 'bg-white text-ink hover:bg-page',
+          )}
+        >
+          {a.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 /* Avatares e siglas */
 
 export function Avatar({ letra, cor = '#15593c', size = 40, className }: { letra: string; cor?: string; size?: number; className?: string }) {

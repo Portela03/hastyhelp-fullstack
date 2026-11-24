@@ -12,7 +12,7 @@ import {
   AlunoTurmaResumo,
   AlunoTurmas,
 } from './pages/Aluno'
-import { Cadastro, EsqueciSenha, Login, RedefinirSenha } from './pages/Auth'
+import { Cadastro, Convite, EsqueciSenha, Login, RedefinirSenha } from './pages/Auth'
 import { DesignSystem } from './pages/DesignSystem'
 import { EquipeAlunos, EquipeDetalhe, EquipeFormularios, EquipeResumo, Equipes } from './pages/Equipes'
 import { FormularioAlunos, FormularioDetalhe, FormularioPerguntas, FormularioResumo, Formularios } from './pages/Formularios'
@@ -59,7 +59,7 @@ function App() {
       <Route path="/cadastro" element={<Cadastro />} />
       <Route path="/esqueci-senha" element={<EsqueciSenha />} />
       <Route path="/redefinir-senha/:token" element={<RedefinirSenha />} />
-      <Route path="/convite/:codigo" element={<Cadastro convite />} />
+      <Route path="/convite/:codigo" element={<Convite />} />
       <Route path="/design-system" element={<DesignSystem />} />
 
       <Route element={<Protegida papel="professor" />}>

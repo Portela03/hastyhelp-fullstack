@@ -6,6 +6,7 @@ import { PerguntaCard } from '../components/PerguntaCard'
 import {
   ButtonBrown,
   ButtonGhost,
+  ButtonPrimary,
   DifficultyLetter,
   FilterSelect,
   KpiCard,
@@ -20,6 +21,7 @@ import {
   TeamBadge,
 } from '../components/ui'
 import { ExcluirModal } from '../components/modals'
+import { ConvitesRecebidos, EntrarEquipeModal } from '../components/modals-membros'
 import {
   ROTULO_STATUS_ALUNO,
   acertou,
@@ -142,6 +144,7 @@ export function AlunoTurmas() {
   const [periodo, setPeriodo] = useState('')
   const [asc, setAsc] = useState(true)
   const [equipeSaindo, setEquipeSaindo] = useState<Equipe | null>(null)
+  const [entrando, setEntrando] = useState(false)
 
   const turmasVisiveis = turmasAluno
     .filter((t) => !t.oculta)
@@ -156,8 +159,16 @@ export function AlunoTurmas() {
     .sort((a, b) => (asc ? 1 : -1) * a.nome.localeCompare(b.nome, 'pt-BR'))
 
   return (
-    <AppShell>
+    <AppShell
+      action={
+        <ButtonPrimary icon="group_add" onClick={() => setEntrando(true)} className="!bg-btn-brown hover:!bg-btn-brown-hover !text-[16px]">
+          Entrar em equipe
+        </ButtonPrimary>
+      }
+    >
       <Banner titulo="Minhas Equipes" subtitulo="Bem-vindo(a)! Aqui você acompanha suas equipes e as autoavaliações que precisam da sua resposta." />
+      <ConvitesRecebidos />
+      {entrando && <EntrarEquipeModal onClose={() => setEntrando(false)} />}
       <Toolbar>
         <div className="flex flex-wrap items-center gap-3">
           <SearchBox value={busca} onChange={setBusca} placeholder="Buscar equipes..." />
@@ -168,7 +179,7 @@ export function AlunoTurmas() {
       <Section titulo="Equipes">
         {turmasVisiveis.length === 0 ? (
           <p className="text-[16px] text-muted">
-            Nenhuma equipe encontrada.
+            {turmasAluno.length === 0 ? 'Você ainda não está em nenhuma equipe. Use “Entrar em equipe” com o código do professor.' : 'Nenhuma equipe encontrada.'}
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2 xl:grid-cols-3">
