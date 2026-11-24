@@ -1,4 +1,4 @@
-export type TipoNotificacao = 'publicacao' | 'lembrete' | 'conclusao' | 'resposta-observacao'
+export type TipoNotificacao = 'publicacao' | 'lembrete' | 'conclusao' | 'resposta-observacao' | 'convite-turma' | 'solicitacao-entrada' | 'entrada-resolvida'
 
 export interface Notificacao {
   id: string

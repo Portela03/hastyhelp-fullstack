@@ -92,7 +92,7 @@ export function CriarEquipeModal({ onClose }: { onClose: () => void }) {
         </div>
         <Acoes concluir="Concluir" onClose={onClose} desabilitado={enviando} />
         <p className="text-center text-[16px] text-[#555]">
-          Novos alunos podem ser adicionados acessando a aba 'Alunos' dentro da equipe ou enviando o link de convite
+          Depois de criar, adicione alunos pelo menu ⋮ da equipe → 'Adicionar membros': por código ou por e-mail
         </p>
       </form>
     </Modal>

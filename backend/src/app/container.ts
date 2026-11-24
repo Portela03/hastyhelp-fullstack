@@ -23,6 +23,10 @@ import { ModerarObservacao } from '../contexts/respostas/application/moderar-obs
 import { SalvarResposta } from '../contexts/respostas/application/salvar-resposta.ts'
 import { GerarLinkDeRedefinicao, RemoverAlunoDaTurma, SairDaEquipe } from '../contexts/turmas/application/alunos-da-turma.ts'
 import { ConsultarConvite } from '../contexts/turmas/application/consultar-convite.ts'
+import { BuscarAlunosParaConvite, ConvidarAluno } from '../contexts/turmas/application/convidar-aluno.ts'
+import { ListarConvites, ResponderConvite } from '../contexts/turmas/application/convites-do-aluno.ts'
+import { EntrarNaTurma, EntrarPorCodigo } from '../contexts/turmas/application/entrar-na-turma.ts'
+import { CancelarConvite, ListarEntradas, ResponderSolicitacao } from '../contexts/turmas/application/entradas-do-professor.ts'
 import { CriarTurma } from '../contexts/turmas/application/criar-turma.ts'
 import { EditarTurma } from '../contexts/turmas/application/editar-turma.ts'
 import { ExcluirTurma } from '../contexts/turmas/application/excluir-turma.ts'
@@ -35,7 +39,8 @@ export function criarContainer(infra: Infra) {
   const publicacao = new AvisarPublicacao({ turmas: infra.turmas, emissor })
   const emitirRedefinicao = new EmitirRedefinicao(infra)
   // Dependências completas: cada caso de uso pega só o que declara no construtor.
-  const deps = { ...infra, emissor, publicacao, emitirRedefinicao }
+  const entrarNaTurma = new EntrarNaTurma({ ...infra, emissor })
+  const deps = { ...infra, emissor, publicacao, emitirRedefinicao, entrarNaTurma }
 
   const listarFormularios = new ListarFormulariosComEstatisticas(deps)
   const uc = {
@@ -59,6 +64,14 @@ export function criarContainer(infra: Infra) {
       removerAluno: new RemoverAlunoDaTurma(deps),
       sairDaEquipe: new SairDaEquipe(deps),
       gerarLinkDeRedefinicao: new GerarLinkDeRedefinicao(deps),
+      entrarPorCodigo: new EntrarPorCodigo(deps),
+      listarEntradas: new ListarEntradas(deps),
+      responderSolicitacao: new ResponderSolicitacao(deps),
+      cancelarConvite: new CancelarConvite(deps),
+      buscarAlunos: new BuscarAlunosParaConvite(deps),
+      convidarAluno: new ConvidarAluno(deps),
+      listarConvites: new ListarConvites(deps),
+      responderConvite: new ResponderConvite(deps),
     },
     formularios: {
       criar: new CriarFormulario(deps),

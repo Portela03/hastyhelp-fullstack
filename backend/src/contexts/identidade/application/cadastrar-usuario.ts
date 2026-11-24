@@ -1,6 +1,8 @@
 import { ErroDeDominio, conflito } from '../../../shared/erros.ts'
 import type { Papel } from '../../../shared/ator.ts'
 import type { GeradorId, Relogio } from '../../../shared/portas.ts'
+import { normalizarCodigo } from '../../../shared/texto.ts'
+import type { EntrarNaTurma } from '../../turmas/application/entrar-na-turma.ts'
 import type { TurmaRepositorio } from '../../turmas/domain/repositorio.ts'
 import { criarEmail } from '../domain/email.ts'
 import { validarSenha } from '../domain/senha.ts'
@@ -20,7 +22,7 @@ export interface EntradaCadastro {
 
 export class CadastrarUsuario {
   constructor(
-    private readonly d: { usuarios: UsuarioRepositorio; turmas: TurmaRepositorio; hasher: Hasher; ids: GeradorId; relogio: Relogio },
+    private readonly d: { usuarios: UsuarioRepositorio; turmas: TurmaRepositorio; entrarNaTurma: EntrarNaTurma; hasher: Hasher; ids: GeradorId; relogio: Relogio },
   ) {}
 
   async executar(e: EntradaCadastro) {
@@ -33,7 +35,7 @@ export class CadastrarUsuario {
       throw new ErroDeDominio('SENHAS_DIFERENTES', 'As senhas não conferem.', 400)
     }
     const convite = e.codigoConvite?.trim()
-    const turma = convite && e.papel === 'aluno' ? await this.d.turmas.porCodigo(convite) : undefined
+    const turma = convite && e.papel === 'aluno' ? await this.d.turmas.porCodigo(normalizarCodigo(convite)) : undefined
     if (convite && e.papel === 'aluno' && !turma) {
       throw new ErroDeDominio('CONVITE_INVALIDO', 'Peça um novo link de convite ao professor.')
     }
@@ -49,7 +51,8 @@ export class CadastrarUsuario {
       criadoEm: this.d.relogio.agora(),
     }
     await this.d.usuarios.salvar(usuario)
-    if (turma) await this.d.turmas.matricular(turma.id, usuario.id)
-    return { usuario: usuarioDTO(usuario) }
+    // R-04/R-103: matricula direto ou deixa o pedido pendente, conforme a turma
+    const entrada = turma ? await this.d.entrarNaTurma.executar(turma, usuario) : undefined
+    return { usuario: usuarioDTO(usuario), ...(entrada ? { entrada: entrada.status } : {}) }
   }
 }

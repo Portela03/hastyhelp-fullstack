@@ -6,7 +6,7 @@ import { Icon, cx } from './ui'
 
 interface NotificacaoDTO {
   id: string
-  tipo: 'publicacao' | 'lembrete' | 'conclusao' | 'resposta-observacao'
+  tipo: 'publicacao' | 'lembrete' | 'conclusao' | 'resposta-observacao' | 'convite-turma' | 'solicitacao-entrada' | 'entrada-resolvida'
   titulo: string
   mensagem: string
   link: string | null
@@ -24,6 +24,9 @@ const ICONE: Record<NotificacaoDTO['tipo'], string> = {
   lembrete: 'schedule',
   conclusao: 'task_alt',
   'resposta-observacao': 'chat',
+  'convite-turma': 'group_add',
+  'solicitacao-entrada': 'person_add',
+  'entrada-resolvida': 'how_to_reg',
 }
 
 const quando = (iso: string) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })

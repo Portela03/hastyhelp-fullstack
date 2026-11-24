@@ -18,6 +18,7 @@ import {
   PasswordField,
   ProgressBar,
   SearchBox,
+  SegmentedTabs,
   SelectField,
   SortButton,
   SliderNotaGeral,
@@ -67,6 +68,7 @@ function Bloco({ titulo, children }: { titulo: string; children: ReactNode }) {
 
 export function DesignSystem() {
   const [modal, setModal] = useState(false)
+  const [abaMembros, setAbaMembros] = useState<'codigo' | 'email'>('codigo')
   const [busca, setBusca] = useState('')
   const [filtro, setFiltro] = useState('')
   const [select, setSelect] = useState('')
@@ -189,6 +191,20 @@ export function DesignSystem() {
             ]}
           />
         </Section>
+      </Bloco>
+
+      <Bloco titulo="Abas segmentadas (Código | Email)">
+        <div className="max-w-[420px]">
+          <SegmentedTabs
+            rotulo="Exemplo de abas segmentadas"
+            abas={[
+              { id: 'codigo', label: 'Código' },
+              { id: 'email', label: 'Email' },
+            ]}
+            ativa={abaMembros}
+            onChange={setAbaMembros}
+          />
+        </div>
       </Bloco>
 
       <Bloco titulo="Ícones e modal">

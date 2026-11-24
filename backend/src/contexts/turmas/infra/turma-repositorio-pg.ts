@@ -11,13 +11,14 @@ interface Linha {
   periodo: string
   docente_id: string
   oculta: boolean
+  aprovacao_manual: boolean
   codigo_convite: string
   criada_em: Date
 }
 
 const paraTurma = (l: Linha): Turma => ({
   id: l.id, nome: l.nome, sigla: l.sigla, cor: l.cor, periodo: l.periodo as PeriodoLetivo,
-  docenteId: l.docente_id, oculta: l.oculta, codigoConvite: l.codigo_convite, criadaEm: l.criada_em,
+  docenteId: l.docente_id, oculta: l.oculta, aprovacaoManual: l.aprovacao_manual, codigoConvite: l.codigo_convite, criadaEm: l.criada_em,
 })
 
 export class TurmaRepositorioPg implements TurmaRepositorio {
@@ -25,10 +26,10 @@ export class TurmaRepositorioPg implements TurmaRepositorio {
 
   async salvar(t: Turma) {
     await this.pool.query(
-      `INSERT INTO turmas (id, nome, sigla, cor, periodo, docente_id, oculta, codigo_convite, criada_em)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       ON CONFLICT (id) DO UPDATE SET nome = $2, sigla = $3, cor = $4, periodo = $5, oculta = $7`,
-      [t.id, t.nome, t.sigla, t.cor, t.periodo, t.docenteId, t.oculta, t.codigoConvite, t.criadaEm],
+      `INSERT INTO turmas (id, nome, sigla, cor, periodo, docente_id, oculta, codigo_convite, criada_em, aprovacao_manual)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       ON CONFLICT (id) DO UPDATE SET nome = $2, sigla = $3, cor = $4, periodo = $5, oculta = $7, aprovacao_manual = $10`,
+      [t.id, t.nome, t.sigla, t.cor, t.periodo, t.docenteId, t.oculta, t.codigoConvite, t.criadaEm, t.aprovacaoManual],
     )
   }
   async porId(id: string) {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import bg from '../assets/figma/login-bg.png'
 import { BotaoVoltar } from '../components/layout'
 import { ButtonBrown, ButtonGhost, Field, PasswordField, cx } from '../components/ui'
@@ -8,7 +8,7 @@ import { api, mensagemDeErro } from '../api/client'
 import type { Papel } from '../data/aluno'
 import { useStore } from '../store'
 
-function AuthLayout({ titulo, children, voltarPara }: { titulo: string; children: ReactNode; voltarPara?: string }) {
+export function AuthLayout({ titulo, children, voltarPara }: { titulo: string; children: ReactNode; voltarPara?: string }) {
   return (
     <div className="relative flex min-h-screen items-center justify-center p-4">
       <img src={bg} alt="" className="pointer-events-none absolute inset-0 size-full object-cover" />
@@ -70,7 +70,9 @@ function EscolhaPapel({ papel, onChange }: { papel: Papel; onChange: (p: Papel) 
 export function Login() {
   const navigate = useNavigate()
   const { entrar } = useStore()
-  const [papel, setPapel] = useState<Papel>('professor')
+  // Vindo de um link de convite: quem já tem conta entra e volta para aceitar o convite (R-114)
+  const convite = useSearchParams()[0].get('convite')
+  const [papel, setPapel] = useState<Papel>(convite ? 'aluno' : 'professor')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState('')
@@ -82,7 +84,7 @@ export function Login() {
     setEnviando(true)
     try {
       await entrar(email, senha, papel)
-      navigate(papel === 'aluno' ? '/aluno/turmas' : '/equipes', { replace: true })
+      navigate(papel === 'aluno' ? (convite ? `/convite/${encodeURIComponent(convite)}` : '/aluno/turmas') : '/equipes', { replace: true })
     } catch (e) {
       setErro(mensagemDeErro(e))
     } finally {
@@ -92,6 +94,11 @@ export function Login() {
 
   return (
     <AuthLayout titulo="Login">
+      {convite && (
+        <p role="status" className="-mt-4 w-full rounded-lg border border-line-input bg-panel px-3 py-2 text-[14px] text-ink">
+          Entre com sua conta de aluno para aceitar o convite da equipe.
+        </p>
+      )}
       <form onSubmit={enviar} className="flex w-full flex-col gap-8">
         <div className="flex flex-col gap-3">
           <EscolhaPapel papel={papel} onChange={setPapel} />
@@ -110,7 +117,7 @@ export function Login() {
             </p>
           )}
         </div>
-        <AuthButtons principal="Concluir" alternativa="Cadastrar" para="/cadastro" desabilitado={enviando} />
+        <AuthButtons principal="Concluir" alternativa="Cadastrar" para={convite ? `/convite/${encodeURIComponent(convite)}` : '/cadastro'} desabilitado={enviando} />
       </form>
     </AuthLayout>
   )
@@ -120,7 +127,7 @@ export function Cadastro({ convite }: { convite?: boolean }) {
   const navigate = useNavigate()
   const { codigo } = useParams()
   const { cadastrar } = useStore()
-  const [turma, setTurma] = useState<{ nome: string; periodo: string } | null>(null)
+  const [turma, setTurma] = useState<{ nome: string; periodo: string; aprovacaoManual?: boolean } | null>(null)
   const [conviteCarregado, setConviteCarregado] = useState(!convite)
   const [papel, setPapel] = useState<Papel>(convite ? 'aluno' : 'professor')
   const [nome, setNome] = useState('')
@@ -133,7 +140,7 @@ export function Cadastro({ convite }: { convite?: boolean }) {
   useEffect(() => {
     if (!convite) return
     let ativo = true
-    api<{ nome: string; periodo: string }>('GET', `/auth/convites/${encodeURIComponent(codigo ?? '')}`)
+    api<{ nome: string; periodo: string; aprovacaoManual?: boolean }>('GET', `/auth/convites/${encodeURIComponent(codigo ?? '')}`)
       .then((t) => ativo && setTurma(t))
       .catch(() => ativo && setTurma(null))
       .finally(() => ativo && setConviteCarregado(true))
@@ -166,7 +173,9 @@ export function Cadastro({ convite }: { convite?: boolean }) {
           role="status"
           className={cx('-mt-4 w-full rounded-lg border px-3 py-2 text-[14px]', turma ? 'border-line-input bg-panel text-ink' : 'border-diff-c text-diff-c')}
         >
-          {turma ? `Você foi convidado(a) para a turma ${turma.nome} (${turma.periodo}).` : 'Este link de convite é inválido ou expirou.'}
+          {turma
+            ? `Você foi convidado(a) para a turma ${turma.nome} (${turma.periodo}).${turma.aprovacaoManual ? ' O professor precisará aceitar sua entrada.' : ''}`
+            : 'Este link de convite é inválido ou expirou.'}
         </p>
       )}
       <form onSubmit={enviar} className="flex w-full flex-col gap-8">
@@ -184,8 +193,96 @@ export function Cadastro({ convite }: { convite?: boolean }) {
             </p>
           )}
         </div>
-        <AuthButtons principal="Cadastrar" alternativa="Login" para="/login" desabilitado={enviando} />
+        <AuthButtons principal="Cadastrar" alternativa="Já tenho conta" para={convite && codigo ? `/login?convite=${encodeURIComponent(codigo)}` : '/login'} desabilitado={enviando} />
       </form>
+    </AuthLayout>
+  )
+}
+
+/**
+ * /convite/:codigo (R-114). Sem login → cadastro com o convite. Aluno já logado → entra na equipe
+ * (antes o link só levava ao cadastro e quem já tinha conta ficava preso a uma turma).
+ */
+export function Convite() {
+  const { sessao } = useStore()
+  if (!sessao) return <Cadastro convite />
+  return <ConviteLogado />
+}
+
+function ConviteLogado() {
+  const { codigo = '' } = useParams()
+  const navigate = useNavigate()
+  const { sessao, entrarNaEquipe } = useStore()
+  const [turma, setTurma] = useState<{ nome: string; periodo: string; aprovacaoManual: boolean } | null | undefined>(undefined)
+  const [erro, setErro] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  const [resultado, setResultado] = useState<Awaited<ReturnType<typeof entrarNaEquipe>> | null>(null)
+
+  useEffect(() => {
+    let ativo = true
+    api<{ nome: string; periodo: string; aprovacaoManual: boolean }>('GET', `/auth/convites/${encodeURIComponent(codigo)}`)
+      .then((t) => ativo && setTurma(t))
+      .catch(() => ativo && setTurma(null))
+    return () => {
+      ativo = false
+    }
+  }, [codigo])
+
+  async function entrar() {
+    setErro('')
+    setEnviando(true)
+    try {
+      setResultado(await entrarNaEquipe(codigo))
+    } catch (e) {
+      setErro(mensagemDeErro(e))
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  const aluno = sessao?.papel === 'aluno'
+  return (
+    <AuthLayout titulo="Convite" voltarPara={aluno ? '/aluno/turmas' : '/equipes'}>
+      <div className="flex w-full flex-col gap-6">
+        {turma === undefined && <p role="status" className="text-[16px] text-muted">Carregando convite…</p>}
+        {turma === null && (
+          <p role="alert" className="rounded-lg border border-diff-c px-3 py-2 text-[14px] text-diff-c">
+            Este link de convite é inválido ou expirou. Peça um novo ao professor.
+          </p>
+        )}
+        {turma && !resultado && (
+          <>
+            <p className="text-[18px] text-ink">
+              Você foi convidado(a) para a equipe <strong>{turma.nome}</strong> ({turma.periodo}).
+              {turma.aprovacaoManual && ' O professor precisará aceitar sua entrada.'}
+            </p>
+            {!aluno && (
+              <p role="status" className="rounded-lg border border-line-input bg-panel px-3 py-2 text-[14px] text-ink">
+                Você está logado como professor. Para entrar numa equipe como aluno, saia e entre com uma conta de aluno.
+              </p>
+            )}
+            {erro && <p role="alert" className="text-[14px] text-diff-c">{erro}</p>}
+            {aluno ? (
+              <ButtonBrown onClick={() => void entrar()} disabled={enviando}>Entrar na equipe</ButtonBrown>
+            ) : (
+              <ButtonBrown onClick={() => navigate('/equipes')}>Ir para minhas equipes</ButtonBrown>
+            )}
+          </>
+        )}
+        {resultado && (
+          <>
+            <p role="status" className="text-[18px] text-ink">
+              {resultado.status === 'matriculado'
+                ? <>Pronto! Você entrou na equipe <strong>{resultado.turma.nome}</strong>.</>
+                : <>Pedido enviado para <strong>{resultado.turma.nome}</strong>. Você será avisado quando o professor aceitar.</>}
+            </p>
+            <ButtonBrown onClick={() => navigate(resultado.status === 'matriculado' ? `/aluno/turmas/${resultado.turma.id}` : '/aluno/turmas')}>
+              {resultado.status === 'matriculado' ? 'Abrir equipe' : 'Ver minhas equipes'}
+            </ButtonBrown>
+          </>
+        )}
+        {turma === null && <Link to={aluno ? '/aluno/turmas' : '/equipes'} className="text-center text-[16px] text-[#555] underline">Voltar</Link>}
+      </div>
     </AuthLayout>
   )
 }

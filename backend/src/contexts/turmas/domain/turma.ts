@@ -13,6 +13,8 @@ export interface Turma {
   periodo: PeriodoLetivo
   docenteId: string
   oculta: boolean
+  /** `true`: quem entra pelo código/link fica pendente até o docente aceitar (R-102/R-103). */
+  aprovacaoManual: boolean
   codigoConvite: string
   criadaEm: Date
 }
@@ -49,6 +51,7 @@ export function criarTurma(dados: NovaTurma): Turma {
     periodo: criarPeriodoLetivo(dados.periodo),
     docenteId: dados.docenteId,
     oculta: false,
+    aprovacaoManual: false,
     codigoConvite: dados.codigoConvite,
     criadaEm: dados.criadaEm,
   }
@@ -60,6 +63,7 @@ export interface EdicaoTurma {
   cor?: string
   periodo?: string
   oculta?: boolean
+  aprovacaoManual?: boolean
 }
 
 export function editarTurma(turma: Turma, mudancas: EdicaoTurma): Turma {
@@ -70,5 +74,6 @@ export function editarTurma(turma: Turma, mudancas: EdicaoTurma): Turma {
     cor: mudancas.cor !== undefined ? validarCor(mudancas.cor) : turma.cor,
     periodo: mudancas.periodo !== undefined ? criarPeriodoLetivo(mudancas.periodo) : turma.periodo,
     oculta: mudancas.oculta ?? turma.oculta,
+    aprovacaoManual: mudancas.aprovacaoManual ?? turma.aprovacaoManual,
   }
 }

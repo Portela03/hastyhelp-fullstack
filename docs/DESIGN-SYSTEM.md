@@ -76,6 +76,9 @@ Sidebar fixa **220px** + coluna fluida; topbar **54px**; conteúdo com `gap-5`; 
 | `PreviaAlunoModal` | professor vê o formulário como o aluno vê, sem salvar nada | `frontend/src/components/modals-alunos.tsx` |
 | `RespostasDoAlunoModal` | respostas individuais de um aluno (por equipe ou por formulário), com nota, nível e gabarito (N09) | `frontend/src/components/modals-alunos.tsx` |
 | `LinkDeRedefinicaoModal` | mostra o link de redefinição de senha gerado para um aluno (R-77) | `frontend/src/components/modals-alunos.tsx` |
+| `AdicionarMembrosModal` | professor adiciona alunos: aba Código (código, link, aprovação manual, pedidos) e aba Email (busca + convite) — R-100…R-111 | `frontend/src/components/modals-membros.tsx` |
+| `EntrarEquipeModal` | aluno digita o código da equipe (R-101/R-103) | `frontend/src/components/modals-membros.tsx` |
+| `ConvitesRecebidos` | cartão de convites pendentes do aluno, com Aceitar/Recusar (R-109/R-110) | `frontend/src/components/modals-membros.tsx` |
 
 ### `frontend/src/components/ui.tsx`
 | Componente | Para quê | Props principais |
@@ -95,6 +98,7 @@ Sidebar fixa **220px** + coluna fluida; topbar **54px**; conteúdo com `gap-5`; 
 | `FilterSelect` | filtro "Rótulo: Valor ▾" | `label`, `options`, `all`, `disabled` |
 | `SortButton` | ordenação | `label`, `icon`, `onClick` |
 | `Modal` | diálogo (Esc/overlay fecham, foco, `aria-modal`) | `title`, `icon`, `onClose`, `width` |
+| `SegmentedTabs` | abas segmentadas (`role="tablist"`), ex.: Código \| Email | `rotulo`, `abas`, `ativa`, `onChange`, `idPainel` |
 | `KpiCard` | indicador (título, valor grande, detalhe) | `titulo`, `valor`, `detalhe`, `destaque` |
 | `Panel` | painel com título/subtítulo | `titulo`, `subtitulo`, `tituloTamanho` |
 | `DifficultyLetter` | letra I/P/C na fonte Plex | `letra` |

@@ -5,6 +5,7 @@ import { CaixaDeSaidaPg, RedefinicaoRepositorioPg, SessaoRepositorioPg } from '.
 import { UsuarioRepositorioPg } from '../contexts/identidade/infra/usuario-repositorio-pg.ts'
 import { NotificacaoRepositorioPg } from '../contexts/notificacoes/infra/notificacao-repositorio-pg.ts'
 import { EnvioRepositorioPg } from '../contexts/respostas/infra/envio-repositorio-pg.ts'
+import { EntradaRepositorioPg } from '../contexts/turmas/infra/entrada-repositorio-pg.ts'
 import { TurmaRepositorioPg } from '../contexts/turmas/infra/turma-repositorio-pg.ts'
 import { relogioSistema } from '../shared/portas.ts'
 import type { Relogio } from '../shared/portas.ts'
@@ -17,6 +18,7 @@ export function criarInfraPostgres(
   return {
     usuarios: new UsuarioRepositorioPg(pool),
     turmas: new TurmaRepositorioPg(pool),
+    entradas: new EntradaRepositorioPg(pool),
     formularios: new FormularioRepositorioPg(pool),
     envios: new EnvioRepositorioPg(pool),
     sessoes: new SessaoRepositorioPg(pool),

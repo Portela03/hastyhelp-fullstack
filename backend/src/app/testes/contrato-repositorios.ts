@@ -7,6 +7,7 @@ import type { Envio } from '../../contexts/respostas/domain/envio.ts'
 import type { EnvioRepositorio } from '../../contexts/respostas/domain/repositorio.ts'
 import type { CaixaDeSaida, RedefinicaoRepositorio, SessaoRepositorio } from '../../contexts/identidade/domain/sessao.ts'
 import type { NotificacaoRepositorio } from '../../contexts/notificacoes/domain/notificacao.ts'
+import type { Entrada, EntradaRepositorio } from '../../contexts/turmas/domain/entrada.ts'
 import type { TurmaRepositorio } from '../../contexts/turmas/domain/repositorio.ts'
 import type { Turma } from '../../contexts/turmas/domain/turma.ts'
 import type { PeriodoLetivo } from '../../contexts/turmas/domain/periodo-letivo.ts'
@@ -14,6 +15,7 @@ import type { PeriodoLetivo } from '../../contexts/turmas/domain/periodo-letivo.
 export interface Repositorios {
   usuarios: UsuarioRepositorio
   turmas: TurmaRepositorio
+  entradas: EntradaRepositorio
   formularios: FormularioRepositorio
   envios: EnvioRepositorio
   sessoes: SessaoRepositorio
@@ -27,7 +29,7 @@ const usuario = (id: string, papel: Usuario['papel'], email = `${id}@escola.com`
   id, nome: `Usuário ${id}`, email, senhaHash: 'hash', papel, preferencias: { ...PREFERENCIAS_PADRAO }, criadoEm: t0,
 })
 const turma = (id: string, docenteId: string, codigo = `cod-${id}`): Turma => ({
-  id, nome: `Turma ${id}`, sigla: 'TT', cor: '#62B7D7', periodo: '2026/02' as PeriodoLetivo, docenteId, oculta: false, codigoConvite: codigo, criadaEm: t0,
+  id, nome: `Turma ${id}`, sigla: 'TT', cor: '#62B7D7', periodo: '2026/02' as PeriodoLetivo, docenteId, oculta: false, aprovacaoManual: false, codigoConvite: codigo, criadaEm: t0,
 })
 const formulario = (id: string, turmaId: string, extra: Partial<Formulario> = {}): Formulario => ({
   id, titulo: `Form ${id}`, turmaId, status: 'aberto', mostrarGabarito: false, criadoEm: t0, publicadoEm: t0,
@@ -83,6 +85,46 @@ export function contratoRepositorios(nome: string, fabrica: () => Promise<Reposi
       expect(await r.turmas.porId('t1')).toBeUndefined()
       expect(await r.turmas.alunosIds('t1')).toEqual([])
       expect(await r.turmas.listarDoAluno('al1')).toEqual([])
+    })
+
+    it('usuários: buscarAlunos ignora acento/caixa, só devolve alunos, respeita exclusões e limite', async () => {
+      await r.usuarios.salvar({ ...usuario('al3', 'aluno', 'jose.silva@escola.com'), nome: 'José Álvares' })
+      await r.usuarios.salvar({ ...usuario('al4', 'aluno', 'maria@escola.com'), nome: 'Maria 100%_x' })
+      await r.usuarios.salvar({ ...usuario('pr2', 'professor', 'jose.prof@escola.com'), nome: 'José Professor' })
+      expect((await r.usuarios.buscarAlunos('jose', [], 10)).map((u) => u.id)).toEqual(['al3'])
+      expect((await r.usuarios.buscarAlunos('alvares', [], 10)).map((u) => u.id)).toEqual(['al3'])
+      expect((await r.usuarios.buscarAlunos('jose.silva@', [], 10)).map((u) => u.id)).toEqual(['al3'])
+      expect(await r.usuarios.buscarAlunos('jose', ['al3'], 10)).toEqual([])
+      expect((await r.usuarios.buscarAlunos('usuario', [], 2)).map((u) => u.id)).toEqual(['al1', 'al2'])
+      // % e _ são literais, não curingas
+      expect((await r.usuarios.buscarAlunos('100%', [], 10)).map((u) => u.id)).toEqual(['al4'])
+      expect(await r.usuarios.buscarAlunos('%', [], 10)).toHaveLength(1)
+    })
+
+    it('entradas: salva, resolve, consulta pendentes (únicas por aluno+turma) e apaga com a turma', async () => {
+      await r.turmas.salvar({ ...turma('t1', 'prof'), aprovacaoManual: true })
+      await r.turmas.salvar(turma('t2', 'prof'))
+      expect((await r.turmas.porId('t1'))?.aprovacaoManual).toBe(true)
+      expect((await r.turmas.porId('t2'))?.aprovacaoManual).toBe(false)
+      const e = (id: string, turmaId: string, alunoId: string, origem: Entrada['origem'], seg = 0): Entrada => ({
+        id, turmaId, alunoId, origem, status: 'pendente', criadaEm: new Date(t0.getTime() + seg * 1000),
+      })
+      await r.entradas.salvar(e('e1', 't1', 'al1', 'codigo', 1))
+      await r.entradas.salvar(e('e2', 't1', 'al2', 'convite', 2))
+      await r.entradas.salvar(e('e3', 't2', 'al2', 'convite', 3))
+      expect((await r.entradas.pendente('t1', 'al1'))?.id).toBe('e1')
+      expect((await r.entradas.pendentesDaTurma('t1')).map((x) => x.id)).toEqual(['e1', 'e2'])
+      expect((await r.entradas.convitesPendentesDoAluno('al2')).map((x) => x.id)).toEqual(['e3', 'e2'])
+      expect(await r.entradas.convitesPendentesDoAluno('al1')).toEqual([])
+      await r.entradas.salvar({ ...e('e1', 't1', 'al1', 'codigo', 1), status: 'aceita', resolvidaEm: t0 })
+      expect(await r.entradas.pendente('t1', 'al1')).toBeUndefined()
+      expect(await r.entradas.porId('e1')).toMatchObject({ status: 'aceita', resolvidaEm: t0 })
+      // resolvida libera um novo pedido pendente do mesmo aluno
+      await r.entradas.salvar(e('e4', 't1', 'al1', 'codigo', 4))
+      expect((await r.entradas.pendente('t1', 'al1'))?.id).toBe('e4')
+      await r.entradas.excluirDaTurma('t1')
+      expect(await r.entradas.porId('e4')).toBeUndefined()
+      expect((await r.entradas.porId('e3'))?.id).toBe('e3')
     })
 
     it('formulários: guarda perguntas em ordem, datas e gabarito; atualiza substituindo perguntas', async () => {

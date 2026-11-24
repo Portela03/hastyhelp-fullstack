@@ -1,3 +1,4 @@
+import { normalizarBusca } from '../../../shared/texto.ts'
 import type { Usuario, UsuarioRepositorio } from '../domain/usuario.ts'
 
 export class UsuarioRepositorioMemoria implements UsuarioRepositorio {
@@ -16,5 +17,11 @@ export class UsuarioRepositorioMemoria implements UsuarioRepositorio {
       const u = this.itens.get(id)
       return u ? [u] : []
     })
+  }
+  async buscarAlunos(termo: string, excluirIds: string[], limite: number) {
+    return [...this.itens.values()]
+      .filter((u) => u.papel === 'aluno' && !excluirIds.includes(u.id) && (normalizarBusca(u.nome).includes(termo) || normalizarBusca(u.email).includes(termo)))
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+      .slice(0, limite)
   }
 }

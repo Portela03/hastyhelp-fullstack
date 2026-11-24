@@ -31,5 +31,5 @@ export async function migrar(pool: pg.Pool): Promise<string[]> {
 
 /** Só para testes: esvazia todas as tabelas de dados. */
 export async function limparBanco(pool: pg.Pool): Promise<void> {
-  await pool.query('TRUNCATE caixa_de_saida, notificacoes, redefinicoes_senha, sessoes, envios, perguntas, formularios, matriculas, turmas, usuarios CASCADE')
+  await pool.query('TRUNCATE entradas_turma, caixa_de_saida, notificacoes, redefinicoes_senha, sessoes, envios, perguntas, formularios, matriculas, turmas, usuarios CASCADE')
 }

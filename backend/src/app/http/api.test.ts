@@ -75,7 +75,7 @@ describe('API — fluxo completo professor → aluno → análise', () => {
 
     const turma = (await api.post('/api/turmas').set('Authorization', prof).send({ nome: 'Estatística Aplicada', periodo: '2026/02' }).expect(201)).body
     expect(turma.codigoConvite).toBeTruthy()
-    expect((await api.get(`/api/auth/convites/${turma.codigoConvite}`).expect(200)).body).toEqual({ nome: 'Estatística Aplicada', periodo: '2026/02' })
+    expect((await api.get(`/api/auth/convites/${turma.codigoConvite}`).expect(200)).body).toEqual({ nome: 'Estatística Aplicada', periodo: '2026/02', aprovacaoManual: false })
 
     const aluno = await cadastrarELogar('aluno', 'Sarah Chen', turma.codigoConvite)
     const form = (await api.post('/api/formularios').set('Authorization', prof).send({ titulo: 'Média, mediana e moda', turmaId: turma.id, postar: true, perguntas: PERGUNTAS }).expect(201)).body

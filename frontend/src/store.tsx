@@ -35,6 +35,13 @@ export interface DadosEquipe {
   sigla?: string
   cor?: string
   oculta?: boolean
+  aprovacaoManual?: boolean
+}
+
+/** Resultado de entrar numa equipe pelo código (R-101/R-103). */
+export interface ResultadoEntrada {
+  status: 'matriculado' | 'pendente'
+  turma: { id: string; nome: string }
 }
 
 export interface DadosFormulario {
@@ -79,6 +86,8 @@ interface Store {
   atualizarEquipe: (id: string, dados: Partial<DadosEquipe>) => Promise<void>
   removerEquipe: (id: string) => Promise<void>
   sairDaEquipe: (id: string) => Promise<void>
+  /** Aluno logado entra numa equipe pelo código (lança `ErroApi` com a mensagem do servidor). */
+  entrarNaEquipe: (codigo: string) => Promise<ResultadoEntrada>
   adicionarFormulario: (dados: DadosFormulario) => Promise<void>
   atualizarFormulario: (id: string, dados: EdicaoFormulario) => Promise<void>
   removerFormulario: (id: string) => Promise<void>
@@ -283,6 +292,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [recarregar],
   )
 
+  const entrarNaEquipe = useCallback(
+    async (codigo: string) => {
+      const r = await api<ResultadoEntrada>('POST', '/aluno/turmas/entrar', { codigo })
+      if (r.status === 'matriculado') await recarregar()
+      return r
+    },
+    [recarregar],
+  )
+
   const adicionarFormulario = useCallback(
     async (dados: DadosFormulario) => {
       await api('POST', '/formularios', { ...dados, perguntas: dados.perguntas.map(perguntaParaApi) })
@@ -380,6 +398,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       atualizarEquipe: (id, dados) => comAviso(() => atualizarEquipe(id, dados)),
       removerEquipe: (id) => comAviso(() => removerEquipe(id)),
       sairDaEquipe: (id) => comAviso(() => sairDaEquipe(id)),
+      entrarNaEquipe,
       adicionarFormulario,
       atualizarFormulario,
       removerFormulario: (id) => comAviso(() => removerFormulario(id)),
@@ -390,7 +409,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       pesquisas,
       registrarPesquisa,
     }),
-    [sessao, carregando, aviso, entrar, cadastrar, sair, recarregar, equipes, formularios, autoavaliacoes, adicionarEquipe, atualizarEquipe, removerEquipe, sairDaEquipe, adicionarFormulario, atualizarFormulario, removerFormulario, comAviso, salvarResposta, enviarAutoavaliacao, preferencias, atualizarPreferencias, pesquisas, registrarPesquisa],
+    [sessao, carregando, aviso, entrar, cadastrar, sair, recarregar, equipes, formularios, autoavaliacoes, adicionarEquipe, atualizarEquipe, removerEquipe, sairDaEquipe, entrarNaEquipe, adicionarFormulario, atualizarFormulario, removerFormulario, comAviso, salvarResposta, enviarAutoavaliacao, preferencias, atualizarPreferencias, pesquisas, registrarPesquisa],
   )
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
 }
