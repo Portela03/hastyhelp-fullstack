@@ -89,20 +89,20 @@ describe('API — fluxo completo professor → aluno → análise', () => {
     await api.put(`/api/aluno/autoavaliacoes/${form.id}/respostas/${p1!.id}`).set('Authorization', aluno).send({ marcadas: [0] }).expect(200)
     await api.post(`/api/aluno/autoavaliacoes/${form.id}/enviar`).set('Authorization', aluno).send({}).expect(422) // incompleto
     await api.put(`/api/aluno/autoavaliacoes/${form.id}/respostas/${p2!.id}`).set('Authorization', aluno).send({ marcadas: [0, 2] }).expect(200)
-    const enviado = (await api.post(`/api/aluno/autoavaliacoes/${form.id}/enviar`).set('Authorization', aluno).send({ observacao: 'Muito bom' }).expect(200)).body
-    expect(enviado).toMatchObject({ status: 'respondido', nota: 10, compreensao: 'I' })
+    const enviado = (await api.post(`/api/aluno/autoavaliacoes/${form.id}/enviar`).set('Authorization', aluno).send({ observacao: 'Muito bom', notaGeral: 8.5 }).expect(200)).body
+    expect(enviado).toMatchObject({ status: 'respondido', nota: 8.5, compreensao: 'I', notaGeral: 8.5 })
     await api.put(`/api/aluno/autoavaliacoes/${form.id}/respostas/${p1!.id}`).set('Authorization', aluno).send({ marcadas: [1] }).expect(409)
 
     // professor
     const resumo = (await api.get(`/api/formularios/${form.id}/resumo`).set('Authorization', prof).expect(200)).body
-    expect(resumo).toMatchObject({ respondidos: 1, total: 1, taxaResposta: 100, notaMedia: 10, totalObservacoes: 1 })
+    expect(resumo).toMatchObject({ respondidos: 1, total: 1, taxaResposta: 100, notaMedia: 8.5, totalObservacoes: 1 })
     const alunos = (await api.get(`/api/formularios/${form.id}/alunos`).set('Authorization', prof).expect(200)).body
-    expect(alunos.responderam[0]).toMatchObject({ nome: 'Sarah Chen', nota: 10 })
+    expect(alunos.responderam[0]).toMatchObject({ nome: 'Sarah Chen', nota: 8.5 })
     const turmas = (await api.get('/api/turmas').set('Authorization', prof).expect(200)).body
-    expect(turmas[0]).toMatchObject({ totalAlunos: 1, taxaResposta: 100, dominioMedio: 100 })
+    expect(turmas[0]).toMatchObject({ totalAlunos: 1, taxaResposta: 100, dominioMedio: 85 })
     expect((await api.get(`/api/turmas/${turma.id}/alunos`).set('Authorization', prof).expect(200)).body.alunos[0]).toMatchObject({ nome: 'Sarah Chen', enviados: '1 / 1' })
     expect((await api.get(`/api/turmas/${turma.id}/resumo`).set('Authorization', prof).expect(200)).body).toMatchObject({ engajamento: 100 })
-    expect((await api.get('/api/metricas?periodo=2026/02').set('Authorization', prof).expect(200)).body).toMatchObject({ desempenhoMedio: 100 })
+    expect((await api.get('/api/metricas?periodo=2026/02').set('Authorization', prof).expect(200)).body).toMatchObject({ desempenhoMedio: 85 })
     expect((await api.get('/api/formularios?status=aberto').set('Authorization', prof).expect(200)).body[0]).toMatchObject({ respostas: 1, total: 1 })
     expect((await api.post(`/api/formularios/${form.id}/notificar-pendentes`).set('Authorization', prof).expect(200)).body).toEqual({ notificados: 0 })
   })

@@ -84,7 +84,7 @@ interface Store {
   removerFormulario: (id: string) => Promise<void>
   salvarResposta: (id: string, perguntaId: string, marcadas: number[]) => void
   /** `true` se enviou; em erro mostra o aviso e devolve `false`. */
-  enviarAutoavaliacao: (id: string, observacao?: string) => Promise<boolean>
+  enviarAutoavaliacao: (id: string, observacao?: string, notaGeral?: number) => Promise<boolean>
   preferencias: PreferenciasPerfil
   atualizarPreferencias: (dados: Partial<PreferenciasPerfil>) => Promise<void>
   pesquisas: PesquisaSatisfacao[]
@@ -320,9 +320,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [autoavaliacoes],
   )
 
-  const enviarAutoavaliacao = useCallback(async (id: string, observacao?: string) => {
+  const enviarAutoavaliacao = useCallback(async (id: string, observacao?: string, notaGeral?: number) => {
     try {
-      const dto = await api<AutoavaliacaoDTO>('POST', `/aluno/autoavaliacoes/${id}/enviar`, observacao ? { observacao } : {})
+      const corpo = {
+        ...(observacao ? { observacao } : {}),
+        ...(notaGeral !== undefined ? { notaGeral } : {}),
+      }
+      const dto = await api<AutoavaliacaoDTO>('POST', `/aluno/autoavaliacoes/${id}/enviar`, corpo)
       setAutoavaliacoes((lista) => lista.map((a) => (a.id === id ? paraAutoavaliacao(dto) : a)))
       return true
     } catch (e) {

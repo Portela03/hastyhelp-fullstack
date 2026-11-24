@@ -33,6 +33,20 @@ describe('Formulario — criação', () => {
 })
 
 describe('Formulario — perguntas', () => {
+  it('R-27 permite enunciados personalizados com alternativas fixas IPC múltiplas', () => {
+    const fixa: Pergunta = {
+      id: 'p-ipc',
+      enunciado: 'Qual é a principal dificuldade nesta questão?',
+      tipo: 'multipla',
+      opcoes: ['Interpretação', 'Procedimento', 'Cálculo', 'Não tive tempo / Deixei em branco'],
+      categoriasOpcao: ['I', 'P', 'C', null],
+    }
+    expect(criarFormulario({ ...base, perguntas: [fixa] }, agora).perguntas[0]).toMatchObject({
+      enunciado: 'Qual é a principal dificuldade nesta questão?',
+      tipo: 'multipla',
+      categoriasOpcao: ['I', 'P', 'C', null],
+    })
+  })
   it('R-27 exige enunciado e ao menos 2 opções', () => {
     expect(() => criarFormulario({ ...base, perguntas: [{ ...pergunta(), enunciado: '' }] }, agora)).toThrowError(/enunciado/i)
     expect(() => criarFormulario({ ...base, perguntas: [{ ...pergunta(), opcoes: ['só uma'] }] }, agora)).toThrowError(/opções/i)

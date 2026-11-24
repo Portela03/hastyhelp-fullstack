@@ -86,7 +86,7 @@ Exclusões em cascata: turma → matrículas, formulários → perguntas, envios
 - **R-24** `publicarEm` precisa estar no futuro ao agendar (422 `DATA_NO_PASSADO`).
 - **R-25** Transições permitidas: `rascunho→aberto|agendado` · `agendado→aberto|rascunho` · `aberto→fechado|concluido` · `fechado→aberto|concluido` · `concluido` é final. Outras → 422 `TRANSICAO_INVALIDA`.
 - **R-26** Agendado cujo `publicarEm` já passou é tratado como `aberto` ao ser lido (materializado no primeiro acesso).
-- **R-27** Pergunta: enunciado obrigatório; ≥ 2 opções; `tipo` `unica`|`multipla`; gabarito (opcional) com índices válidos; `unica` aceita no máximo 1 índice.
+- **R-27** Pergunta: enunciado obrigatório; ≥ 2 opções; `tipo` `unica`|`multipla`; gabarito (opcional) com índices válidos; `unica` aceita no máximo 1 índice. A opção fixa de autoavaliação tem 4 alternativas: interpretação (`I`), procedimento (`P`), cálculo (`C`) e ausência de resposta, sem categoria IPC. Todas as opções podem ser marcadas na resposta.
 - **R-28** Perguntas só podem ser alteradas em `rascunho`/`agendado` (RNF05: formulário publicado é imutável). Título, prazo e `mostrarGabarito` podem mudar sempre.
 - **R-29** Excluir formulário remove perguntas e envios; só o docente dono.
 - **R-30** Listagem aceita filtros `turmaId`, `status`, `busca` e devolve por formulário: `respostas` (envios enviados), `total` (alunos da turma), `dominioMedio`, `maiorDificuldade`.
@@ -98,9 +98,9 @@ Exclusões em cascata: turma → matrículas, formulários → perguntas, envios
 - **R-43** `marcadas` com índices válidos; `unica` aceita no máximo 1.
 - **R-44** Enviar exige **todas** as perguntas respondidas (422 `RESPOSTAS_INCOMPLETAS`). Resposta enviada é **imutável**.
 - **R-45** Nota = acertos ÷ perguntas com gabarito × 10, uma casa decimal; sem gabarito → sem nota ("em análise").
-- **R-46** Nível de compreensão (`I`/`P`/`C`) derivado da nota: ≥ 8 → `I`; ≥ 6 → `P`; senão `C` *(assumido; confirmar significado com a equipe)*.
+- **R-46** Nível de compreensão (`I`/`P`/`C`) derivado das opções IPC marcadas pelo aluno na autoavaliação; quando houver mais de uma categoria, prevalece a pior (`C` > `P` > `I`). Sem categoria marcada (inclusive quando só marcou "Não tive tempo / Deixei em branco"), não há nível. Fora da opção fixa, o nível continua derivado da nota: ≥ 8 → `I`; ≥ 6 → `P`; senão `C` *(assumido; confirmar significado com a equipe)*.
 - **R-47** Gabarito só é enviado ao aluno quando `mostrarGabarito` e o envio está enviado ou o formulário encerrou.
-- **R-48** Envio guarda aluno, turma e formulário (RF04) e aceita `observacao` opcional.
+- **R-48** Envio guarda aluno, turma e formulário (RF04), aceita `observacao` opcional e uma `notaGeral` em escala de 0 a 10, em intervalos de 0,5. Esse valor é a nota final da autoavaliação e alimenta “Minha nota”, médias e evolução. A interface exige o valor antes do envio; a API aceita ausência para compatibilidade com envios existentes e rejeita valores fora da escala ou com intervalo inferior a 0,5 (`NOTA_GERAL_INVALIDA`).
 
 ### Análise (RF05–RF08)
 - **R-50** *Maior dificuldade* de um conjunto de envios = nível mais frequente entre `I/P/C`; empate resolve para o pior (`C` > `P` > `I`); sem envios → `null`.

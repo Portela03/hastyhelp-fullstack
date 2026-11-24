@@ -14,6 +14,8 @@ export interface Envio {
   status: StatusEnvio
   respostas: Respostas
   nota?: number
+  /** Autoavaliação geral do conteúdo, em escala de 0 a 10 (passo 0,5). */
+  notaGeral?: number
   compreensao?: NivelDeCompreensao
   observacao?: string
   /** Moderação do professor (R-95, R-96). */
@@ -44,12 +46,24 @@ export function registrarResposta(envio: Envio, pergunta: Pergunta, marcadas: nu
   return { ...envio, respostas: { ...envio.respostas, [pergunta.id]: unicas.sort((a, b) => a - b) }, atualizadoEm: agora }
 }
 
-export function enviarEnvio(envio: Envio, perguntas: Pergunta[], observacao: string | undefined, agora: Date): Envio {
+export function enviarEnvio(envio: Envio, perguntas: Pergunta[], observacao: string | undefined, agora: Date, notaGeral?: number): Envio {
   exigirEditavel(envio)
+  if (notaGeral !== undefined && (!Number.isFinite(notaGeral) || notaGeral < 0 || notaGeral > 10 || notaGeral * 2 !== Math.round(notaGeral * 2))) {
+    throw new ErroDeDominio('NOTA_GERAL_INVALIDA', 'A nota geral deve estar entre 0 e 10, em intervalos de 0,5.', 400)
+  }
   const completo = perguntas.length > 0 && perguntas.every((p) => (envio.respostas[p.id]?.length ?? 0) > 0)
   if (!completo) throw new ErroDeDominio('RESPOSTAS_INCOMPLETAS', 'Responda todas as perguntas antes de enviar.')
-  const nota = calcularNota(perguntas, envio.respostas)
-  const compreensao = classificarCompreensao(nota)
+  const notaCalculada = calcularNota(perguntas, envio.respostas)
+  const nota = notaGeral ?? notaCalculada
+  const categoriasMarcadas = perguntas.flatMap((pergunta) =>
+    (envio.respostas[pergunta.id] ?? []).flatMap((indice) => {
+      const categoria = pergunta.categoriasOpcao?.[indice]
+      return categoria ? [categoria] : []
+    }),
+  )
+  const compreensao = categoriasMarcadas.length
+    ? (categoriasMarcadas.includes('C') ? 'C' : categoriasMarcadas.includes('P') ? 'P' : 'I')
+    : classificarCompreensao(nota)
   const obs = observacao?.trim()
   return {
     ...envio,
@@ -57,6 +71,7 @@ export function enviarEnvio(envio: Envio, perguntas: Pergunta[], observacao: str
     enviadoEm: agora,
     atualizadoEm: agora,
     ...(nota !== undefined ? { nota } : {}),
+    ...(notaGeral !== undefined ? { notaGeral } : {}),
     ...(compreensao ? { compreensao } : {}),
     ...(obs ? { observacao: obs } : {}),
   }

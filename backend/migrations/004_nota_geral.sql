@@ -1,0 +1,2 @@
+ALTER TABLE envios
+  ADD COLUMN IF NOT EXISTS nota_geral NUMERIC(3, 1);

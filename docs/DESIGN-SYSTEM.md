@@ -98,6 +98,7 @@ Sidebar fixa **220px** + coluna fluida; topbar **54px**; conteúdo com `gap-5`; 
 | `KpiCard` | indicador (título, valor grande, detalhe) | `titulo`, `valor`, `detalhe`, `destaque` |
 | `Panel` | painel com título/subtítulo | `titulo`, `subtitulo`, `tituloTamanho` |
 | `DifficultyLetter` | letra I/P/C na fonte Plex | `letra` |
+| `SliderNotaGeral` | nota geral do conteúdo em escala 0–10, passo 0,5 | `value`, `onChange`, `leitura` |
 
 ### `frontend/src/components/layout.tsx`
 | Componente | Para quê |

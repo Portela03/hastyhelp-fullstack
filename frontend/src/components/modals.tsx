@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { FormEvent } from 'react'
 import { mensagemDeErro } from '../api/client'
@@ -27,6 +27,26 @@ function Acoes({ concluir, onClose, desabilitado }: { concluir: string; onClose:
 }
 
 const opcoesPeriodo = PERIODOS.map((p) => ({ value: p, label: p }))
+
+const OPCOES_FIXAS_IPC = [
+  'Tive dificuldade na interpretação do texto / Não entendi o que pedia',
+  'Sabia o que pedia, mas não soube qual fórmula ou passo usar',
+  'Montei certo, mas errei na hora de fazer a conta',
+  'Não tive tempo / Deixei em branco',
+] as const
+
+const CATEGORIAS_FIXAS_IPC = ['I', 'P', 'C', null] as const
+
+function novaPerguntaFixa(): Pergunta {
+  return {
+    id: `novo-${Date.now()}`,
+    enunciado: '',
+    tipo: 'multipla',
+    opcoes: [...OPCOES_FIXAS_IPC],
+    marcadas: [],
+    categoriasOpcao: [...CATEGORIAS_FIXAS_IPC],
+  }
+}
 
 /* Equipes */
 
@@ -165,133 +185,160 @@ function prazoParaApi(texto: string): string {
 
 /** Remove opções vazias e reindexa o gabarito. */
 function normalizarPergunta(p: Pergunta): Pergunta {
-  const mantidas = p.opcoes.map((texto, i) => ({ texto: texto.trim(), i })).filter((o) => o.texto)
-  const gabarito = (p.gabarito ?? []).flatMap((g) => {
-    const novo = mantidas.findIndex((o) => o.i === g)
-    return novo >= 0 ? [novo] : []
-  })
-  return { ...p, enunciado: p.enunciado.trim(), opcoes: mantidas.map((o) => o.texto), marcadas: [], gabarito }
+  return {
+    ...p,
+    enunciado: p.enunciado.trim(),
+    tipo: 'multipla',
+    opcoes: [...OPCOES_FIXAS_IPC],
+    marcadas: [],
+    categoriasOpcao: [...CATEGORIAS_FIXAS_IPC],
+  }
 }
 
 function PerguntasEditor({ perguntas, onChange, somenteLeitura }: { perguntas: Pergunta[]; onChange: (p: Pergunta[]) => void; somenteLeitura?: boolean }) {
   const [editando, setEditando] = useState<string | null>(null)
+  const atualizarEnunciado = (id: string, enunciado: string) => onChange(perguntas.map((pergunta) => pergunta.id === id ? { ...pergunta, enunciado } : pergunta))
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const [textoAntesDeEditar, setTextoAntesDeEditar] = useState<Record<string, string>>({})
 
-  const atualizar = (id: string, mudanca: Partial<Pergunta>) => onChange(perguntas.map((p) => (p.id === id ? { ...p, ...mudanca } : p)))
-  function adicionar() {
-    const nova: Pergunta = { id: `novo-${Date.now()}`, enunciado: '', tipo: 'unica', opcoes: ['', ''], marcadas: [], gabarito: [] }
-    onChange([...perguntas, nova])
-    setEditando(nova.id)
-  }
-  function alternarCorreta(p: Pergunta, indice: number) {
-    const atual = p.gabarito ?? []
-    if (p.tipo === 'unica') return atualizar(p.id, { gabarito: atual.includes(indice) ? [] : [indice] })
-    atualizar(p.id, { gabarito: atual.includes(indice) ? atual.filter((g) => g !== indice) : [...atual, indice] })
-  }
-  function removerOpcao(p: Pergunta, indice: number) {
-    atualizar(p.id, {
-      opcoes: p.opcoes.filter((_, i) => i !== indice),
-      gabarito: (p.gabarito ?? []).filter((g) => g !== indice).map((g) => (g > indice ? g - 1 : g)),
-    })
-  }
+  useEffect(() => {
+    if (!editando) return
+
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    textarea.focus()
+    const fim = textarea.value.length
+    textarea.setSelectionRange(fim, fim)
+  }, [editando])
 
   return (
-    <div className="flex w-full flex-col gap-1">
-      <span className="text-[18px] text-ink">Perguntas</span>
+    <fieldset className="flex w-full flex-col gap-1">
+      <legend className="mb-1 text-[18px] text-ink">Perguntas</legend>
       <ul className="flex flex-col gap-1">
-        {perguntas.map((p, i) => (
-          <li key={p.id} className="flex flex-col gap-2 rounded-lg border border-placeholder bg-white px-3 py-3 text-[16px] text-placeholder">
-            <div className="flex items-center gap-2">
-              <span className="min-w-0 flex-1 truncate">{`${i + 1}. ${p.enunciado || 'Nova pergunta'}`}</span>
-              {!somenteLeitura && (
-                <>
-                  <button
-                    type="button"
-                    aria-label={`Editar pergunta ${i + 1}`}
-                    aria-expanded={editando === p.id}
-                    onClick={() => setEditando(editando === p.id ? null : p.id)}
-                    className="flex cursor-pointer text-[18px] text-muted"
-                  >
-                    <Icon name="edit_note" />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`Excluir pergunta ${i + 1}`}
-                    onClick={() => onChange(perguntas.filter((x) => x.id !== p.id))}
-                    className="flex cursor-pointer text-[18px] text-muted"
-                  >
-                    <Icon name="delete" />
-                  </button>
-                </>
-              )}
-            </div>
-            {editando === p.id && !somenteLeitura && (
-              <div className="flex flex-col gap-2 border-t border-line pt-2">
-                <input
-                  autoFocus
-                  aria-label={`Enunciado da pergunta ${i + 1}`}
-                  value={p.enunciado}
-                  onChange={(e) => atualizar(p.id, { enunciado: e.target.value })}
-                  placeholder="Digite a pergunta"
-                  className="rounded-lg border border-line-input bg-white px-3 py-2 text-ink outline-none focus-visible:border-ink"
-                />
-                <div role="radiogroup" aria-label={`Tipo da pergunta ${i + 1}`} className="flex gap-4 text-[14px] text-ink">
-                  {(['unica', 'multipla'] as const).map((tipo) => (
-                    <label key={tipo} className="flex cursor-pointer items-center gap-1.5">
-                      <input
-                        type="radio"
-                        name={`tipo-${p.id}`}
-                        checked={p.tipo === tipo}
-                        onChange={() => atualizar(p.id, { tipo, gabarito: tipo === 'unica' ? (p.gabarito ?? []).slice(0, 1) : (p.gabarito ?? []) })}
-                        className="accent-sidebar"
-                      />
-                      {tipo === 'unica' ? 'Escolha única' : 'Múltipla escolha'}
-                    </label>
-                  ))}
-                </div>
-                <p className="text-[13px] text-muted">Marque a(s) opção(ões) correta(s) para gerar a nota (opcional).</p>
-                <ul className="flex flex-col gap-1.5">
-                  {p.opcoes.map((op, j) => (
-                    <li key={j} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        aria-label={`Opção ${j + 1} da pergunta ${i + 1} é correta`}
-                        checked={(p.gabarito ?? []).includes(j)}
-                        onChange={() => alternarCorreta(p, j)}
-                        className="size-4 shrink-0 cursor-pointer accent-sidebar"
-                      />
-                      <input
-                        aria-label={`Opção ${j + 1} da pergunta ${i + 1}`}
-                        value={op}
-                        onChange={(e) => atualizar(p.id, { opcoes: p.opcoes.map((x, k) => (k === j ? e.target.value : x)) })}
-                        placeholder={`Opção ${j + 1}`}
-                        className="min-w-0 flex-1 rounded-lg border border-line-input bg-white px-2 py-1.5 text-ink outline-none focus-visible:border-ink"
-                      />
-                      {p.opcoes.length > 2 && (
-                        <button type="button" aria-label={`Remover opção ${j + 1} da pergunta ${i + 1}`} onClick={() => removerOpcao(p, j)} className="flex cursor-pointer text-[18px] text-muted">
-                          <Icon name="close" />
-                        </button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  type="button"
-                  onClick={() => atualizar(p.id, { opcoes: [...p.opcoes, ''] })}
-                  className="w-fit cursor-pointer rounded-lg border border-[#c9b8a0] bg-white px-2 py-1 text-[14px] text-[#a08d77]"
-                >
-                  + Opção
-                </button>
+        {perguntas.map((pergunta, indice) => (
+          <li
+            key={pergunta.id}
+            className={[
+              'flex items-start gap-2 rounded-lg px-3 py-3 transition-all duration-150',
+              editando === pergunta.id
+                ? 'border border-[#c9b8a0] bg-white shadow-[0_0_0_3px_rgba(201,184,160,0.25)]'
+                : 'border border-placeholder bg-white',
+            ].join(' ')}
+          >
+            <span
+              className="flex h-8 w-6 shrink-0 items-center justify-center leading-8"
+              style={{
+                color: editando === pergunta.id ? '#333333' : '#878787',
+              }}
+            >
+              {indice + 1}.
+            </span>
+
+            <textarea
+              ref={editando === pergunta.id ? textareaRef : undefined}
+              autoFocus={false}
+              aria-label={`Enunciado da pergunta ${indice + 1}`}
+              value={pergunta.enunciado}
+              placeholder="Nova pergunta"
+              disabled={editando !== pergunta.id || somenteLeitura}
+              rows={1}
+              style={{ caretColor: '#333333' }}
+              onChange={(event) =>
+                atualizarEnunciado(pergunta.id, event.target.value)
+              }
+              onInput={(event) => {
+                event.currentTarget.style.height = '32px'
+                event.currentTarget.style.height =
+                  `${event.currentTarget.scrollHeight}px`
+              }}
+              onBlur={() => setEditando(null)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  event.currentTarget.blur()
+                }
+              }}
+              className={[
+                'block h-8 min-w-0 flex-1 resize-none overflow-hidden',
+                'border-0 bg-transparent p-0 text-[16px] leading-8',
+                'text-placeholder outline-none caret-[#c9b8a0]',
+                'enabled:text-ink',
+              ].join(' ')}
+            />
+
+            {!somenteLeitura && (
+              <div className="flex h-8 shrink-0 items-center gap-2">
+                {editando === pergunta.id ? (
+                  <>
+                    <button
+                      type="button"
+                      aria-label={`Salvar pergunta ${indice + 1}`}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => setEditando(null)}
+                      className="flex cursor-pointer items-center text-[18px] text-[#5F8F6B]"
+                    >
+                      <Icon name="check" />
+                    </button>
+
+                    <button
+                      type="button"
+                      aria-label={`Cancelar edição da pergunta ${indice + 1}`}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => {
+                        const textoOriginal =
+                          textoAntesDeEditar[pergunta.id] ?? pergunta.enunciado
+
+                        atualizarEnunciado(pergunta.id, textoOriginal)
+                        setEditando(null)
+                      }}
+                      className="flex cursor-pointer items-center text-[18px] text-muted"
+                    >
+                      <Icon name="close" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      aria-label={`Editar pergunta ${indice + 1}`}
+                      onClick={() => {
+                        setTextoAntesDeEditar((atuais) => ({
+                          ...atuais,
+                          [pergunta.id]: pergunta.enunciado,
+                        }))
+                        setEditando(pergunta.id)
+                      }}
+                      className="flex cursor-pointer items-center text-[18px] text-muted"
+                    >
+                      <Icon name="edit" />
+                    </button>
+
+                    <button
+                      type="button"
+                      aria-label={`Excluir pergunta ${indice + 1}`}
+                      onClick={() =>
+                        onChange(
+                          perguntas.filter((item) => item.id !== pergunta.id),
+                        )
+                      }
+                      className="flex cursor-pointer items-center text-[18px] text-muted"
+                    >
+                      <Icon name="delete" />
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </li>
         ))}
       </ul>
       {!somenteLeitura && (
-        <button type="button" onClick={adicionar} className="mt-0.5 w-fit cursor-pointer rounded-lg border border-[#c9b8a0] bg-white px-2 py-1 text-[16px] text-[#a08d77]">
+        <button type="button" onClick={() => onChange([...perguntas, novaPerguntaFixa()])} className="mt-0.5 w-fit cursor-pointer rounded-lg border border-[#c9b8a0] bg-white px-2 py-1 text-[16px] text-[#a08d77]">
           + Adicionar
         </button>
       )}
-    </div>
+    </fieldset>
   )
 }
 
@@ -393,7 +440,13 @@ export function EditarFormularioModal({ formulario, onClose }: { formulario: For
   const equipe = equipes.find((e) => e.id === formulario.equipeId)
   const [nome, setNome] = useState(formulario.titulo)
   const [status, setStatus] = useState<StatusFormulario>(formulario.status)
-  const [perguntas, setPerguntas] = useState<Pergunta[]>(formulario.perguntas.map((p) => ({ ...p, gabarito: p.gabarito ?? [] })))
+  const [perguntas, setPerguntas] = useState<Pergunta[]>(formulario.perguntas.map((pergunta) => ({
+    ...pergunta,
+    tipo: 'multipla',
+    opcoes: [...OPCOES_FIXAS_IPC],
+    marcadas: [],
+    categoriasOpcao: [...CATEGORIAS_FIXAS_IPC],
+  })))
   const [data, setData] = useState('')
   const [hora, setHora] = useState('')
   const [prazo, setPrazo] = useState(formulario.prazo ?? '')

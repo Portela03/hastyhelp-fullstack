@@ -13,6 +13,7 @@ const PERGUNTA = z.object({
   tipo: z.enum(['unica', 'multipla']),
   opcoes: z.array(z.string()),
   gabarito: z.array(z.number().int()).optional(),
+  categoriasOpcao: z.array(z.enum(['I', 'P', 'C']).nullable()).optional(),
 })
 const ESQ = {
   cadastro: z.object({
@@ -72,7 +73,10 @@ const ESQ = {
   moderacao: z
     .object({ resposta: z.string().nullable().optional(), oculta: z.boolean().optional() })
     .refine((m) => m.resposta !== undefined || m.oculta !== undefined, { message: 'Informe "resposta" e/ou "oculta".' }),
-  envio: z.object({ observacao: z.string().optional() }).default({}),
+  envio: z.object({
+    observacao: z.string().optional(),
+    notaGeral: z.number().min(0).max(10).optional(),
+  }).default({}),
 }
 
 /** Remove chaves `undefined` (exactOptionalPropertyTypes-friendly). */
@@ -235,8 +239,8 @@ export function criarApp({ uc, infra }: Container, opcoes: { exporCaixaDeSaida?:
     res.json(await uc.respostas.salvar.executar(atorDe(res), param(req, 'id'), param(req, 'perguntaId'), marcadas))
   }))
   aluno.post('/aluno/autoavaliacoes/:id/enviar', rota(async (req, res) => {
-    const { observacao } = ESQ.envio.parse(req.body)
-    res.json(await uc.respostas.enviar.executar(atorDe(res), param(req, 'id'), observacao))
+    const { observacao, notaGeral } = ESQ.envio.parse(req.body)
+    res.json(await uc.respostas.enviar.executar(atorDe(res), param(req, 'id'), observacao, notaGeral))
   }))
   api.use(aluno)
 
