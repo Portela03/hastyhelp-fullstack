@@ -73,13 +73,12 @@ test.describe('RF01 - cadastro e autenticação', () => {
 
   test('RF01 - link de convite inválido avisa o aluno e impede o cadastro', async ({ page }) => {
     await page.goto('/convite/codigo-que-nao-existe')
-    await expect(page.getByRole('status')).toContainText('inválido ou expirou')
-    await page.getByLabel('Nome', { exact: true }).fill('Fulano')
-    await page.getByLabel('Email').fill(`aluno.${unico()}@teste.com`)
-    await page.getByLabel('Senha', { exact: true }).fill(SENHA)
-    await page.getByLabel('Confirme sua senha').fill(SENHA)
-    await page.getByRole('button', { name: 'Cadastrar' }).click()
-    await expect(page.getByRole('alert')).toContainText('novo link de convite')
+    // desde o R-17/#12 o formulário some e só resta o aviso com a saída para o login
+    await expect(page.getByRole('alert')).toContainText('inválido ou expirou')
+    await expect(page.getByLabel('Nome', { exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Cadastrar' })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Voltar ao login' }).click()
+    await expect(page).toHaveURL(/\/login/)
   })
 
   test('RNF03 - aluno não acessa a área do professor e visitante vai para o login', async ({ page }) => {
