@@ -11,6 +11,7 @@ interface Linha {
   status: Envio['status']
   respostas: Envio['respostas']
   nota: string | null
+  nota_geral: string | null
   compreensao: NivelDeCompreensao | null
   observacao: string | null
   enviado_em: Date | null
@@ -29,6 +30,7 @@ const paraEnvio = (l: Linha): Envio => ({
   respostas: l.respostas,
   atualizadoEm: l.atualizado_em,
   ...(l.nota !== null ? { nota: Number(l.nota) } : {}),
+  ...(l.nota_geral !== null ? { notaGeral: Number(l.nota_geral) } : {}),
   ...(l.compreensao ? { compreensao: l.compreensao } : {}),
   ...(l.observacao ? { observacao: l.observacao } : {}),
   ...(l.enviado_em ? { enviadoEm: l.enviado_em } : {}),
@@ -42,12 +44,12 @@ export class EnvioRepositorioPg implements EnvioRepositorio {
 
   async salvar(e: Envio) {
     await this.pool.query(
-      `INSERT INTO envios (id, formulario_id, aluno_id, turma_id, status, respostas, nota, compreensao, observacao, enviado_em, atualizado_em, observacao_oculta, resposta_professor, respondida_em)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      `INSERT INTO envios (id, formulario_id, aluno_id, turma_id, status, respostas, nota, nota_geral, compreensao, observacao, enviado_em, atualizado_em, observacao_oculta, resposta_professor, respondida_em)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        ON CONFLICT (formulario_id, aluno_id) DO UPDATE
-         SET status = $5, respostas = $6, nota = $7, compreensao = $8, observacao = $9, enviado_em = $10, atualizado_em = $11,
-             observacao_oculta = $12, resposta_professor = $13, respondida_em = $14`,
-      [e.id, e.formularioId, e.alunoId, e.turmaId, e.status, JSON.stringify(e.respostas), e.nota ?? null, e.compreensao ?? null, e.observacao ?? null, e.enviadoEm ?? null, e.atualizadoEm, e.observacaoOculta ?? false, e.respostaProfessor ?? null, e.respondidaEm ?? null],
+         SET status = $5, respostas = $6, nota = $7, nota_geral = $8, compreensao = $9, observacao = $10, enviado_em = $11, atualizado_em = $12,
+             observacao_oculta = $13, resposta_professor = $14, respondida_em = $15`,
+      [e.id, e.formularioId, e.alunoId, e.turmaId, e.status, JSON.stringify(e.respostas), e.nota ?? null, e.notaGeral ?? null, e.compreensao ?? null, e.observacao ?? null, e.enviadoEm ?? null, e.atualizadoEm, e.observacaoOculta ?? false, e.respostaProfessor ?? null, e.respondidaEm ?? null],
     )
   }
   async porId(id: string) {

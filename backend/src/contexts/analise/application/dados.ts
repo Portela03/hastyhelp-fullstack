@@ -10,7 +10,7 @@ import type { Envio } from '../../respostas/domain/envio.ts'
 import type { EnvioRepositorio } from '../../respostas/domain/repositorio.ts'
 import type { TurmaRepositorio } from '../../turmas/domain/repositorio.ts'
 import type { Turma } from '../../turmas/domain/turma.ts'
-import { dominioMedio, maiorDificuldade, taxaDeResposta } from '../domain/metricas.ts'
+import { dominioMedio, maiorDificuldade, media, taxaDeResposta } from '../domain/metricas.ts'
 
 export interface DepsAnalise {
   usuarios: UsuarioRepositorio
@@ -44,7 +44,12 @@ export async function carregarDadosDaTurma(d: DepsAnalise, turma: Turma): Promis
   return { turma, alunos, formularios: lista, publicados, enviados, todosEnvios }
 }
 
-export const notasDe = (envios: Envio[]): number[] => envios.flatMap((e) => (e.nota === undefined ? [] : [e.nota]))
+export const notasDe = (envios: Envio[]): number[] =>
+  envios.flatMap((e) => {
+    const notaFinal = e.notaGeral ?? e.nota
+    return notaFinal === undefined ? [] : [notaFinal]
+  })
+export const notasGeraisDe = (envios: Envio[]): number[] => envios.flatMap((e) => (e.notaGeral === undefined ? [] : [e.notaGeral]))
 export const niveisDe = (envios: Envio[]) => envios.flatMap((e) => (e.compreensao ? [e.compreensao] : []))
 export const arredondar1 = (n: number | null) => (n === null ? null : Math.round(n * 10) / 10)
 

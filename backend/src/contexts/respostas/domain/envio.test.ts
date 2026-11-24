@@ -54,6 +54,15 @@ describe('Envio', () => {
     expect(() => registrarResposta(enviado, perguntas[0]!, [1], agora)).toThrowError(/enviad/i)
     expect(() => enviarEnvio(enviado, perguntas, undefined, agora)).toThrowError(/enviad/i)
   })
+  it('R-48 nota geral aceita 0–10 em intervalos de 0,5 e guarda o valor', () => {
+    let e = envio()
+    e = registrarResposta(e, perguntas[0]!, [0], agora)
+    e = registrarResposta(e, perguntas[1]!, [0, 2], agora)
+    e = registrarResposta(e, perguntas[2]!, [1], agora)
+    const enviado = enviarEnvio(e, perguntas, undefined, agora, 7.5)
+    expect(enviado).toMatchObject({ nota: 7.5, notaGeral: 7.5 })
+    expect(() => enviarEnvio(e, perguntas, undefined, agora, 7.3)).toThrowError(/nota geral/i)
+  })
   it('R-46 opções fixas IPC prevalecem pela pior categoria marcada', () => {
     const fixa: Pergunta = {
       id: 'ipc',

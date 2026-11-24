@@ -16,7 +16,7 @@ import type { AutoavaliacaoDTO } from './dto.ts'
 export class EnviarAutoavaliacao {
   constructor(private readonly d: { formularios: FormularioRepositorio; turmas: TurmaRepositorio; envios: EnvioRepositorio; ids: GeradorId; relogio: Relogio; publicacao?: AvisoDePublicacao; emissor: EmissorDeNotificacoes }) {}
 
-  async executar(ator: Ator, formularioId: string, observacao?: string): Promise<AutoavaliacaoDTO> {
+  async executar(ator: Ator, formularioId: string, observacao?: string, notaGeral?: number): Promise<AutoavaliacaoDTO> {
     const formulario = await formularioDoAluno(this.d, ator, formularioId)
     const agora = this.d.relogio.agora()
     const existente = await this.d.envios.porFormularioEAluno(formularioId, ator.id)
@@ -28,6 +28,7 @@ export class EnviarAutoavaliacao {
       formulario.perguntas,
       observacao,
       agora,
+      notaGeral,
     )
     await this.d.envios.salvar(envio)
     await this.avisarSeConcluiu(formulario.id, formulario.titulo, formulario.turmaId)

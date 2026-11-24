@@ -68,6 +68,7 @@ export interface AutoavaliacaoDTO {
   prazo?: string
   enviadoEm?: string
   nota?: number
+  notaGeral?: number
   compreensao?: Dificuldade
   mostrarGabarito: boolean
   observacao?: string
@@ -121,21 +122,25 @@ export const paraFormulario = (f: FormularioDTO, equipes: Equipe[]): Formulario 
   ...(f.maiorDificuldade ? { maiorDificuldade: f.maiorDificuldade } : {}),
 })
 
-export const paraAutoavaliacao = (a: AutoavaliacaoDTO): AutoavaliacaoAluno => ({
-  id: a.id,
-  titulo: a.titulo,
-  turmaId: a.turmaId,
-  status: a.status,
-  mostrarGabarito: a.mostrarGabarito,
-  perguntas: a.perguntas.map(paraPergunta),
-  respostas: a.respostas,
-  ...(a.prazo ? { prazo: formatarData(a.prazo) } : {}),
-  ...(a.enviadoEm ? { enviadoEm: formatarData(a.enviadoEm) } : {}),
-  ...(a.nota !== undefined ? { nota: a.nota } : {}),
-  ...(a.compreensao ? { compreensao: a.compreensao } : {}),
-  ...(a.observacao ? { observacao: a.observacao } : {}),
-  ...(a.respostaProfessor ? { respostaProfessor: a.respostaProfessor } : {}),
-})
+export function paraAutoavaliacao(a: AutoavaliacaoDTO): AutoavaliacaoAluno {
+  const notaFinal = a.nota ?? a.notaGeral
+  return {
+    id: a.id,
+    titulo: a.titulo,
+    turmaId: a.turmaId,
+    status: a.status,
+    mostrarGabarito: a.mostrarGabarito,
+    perguntas: a.perguntas.map(paraPergunta),
+    respostas: a.respostas,
+    ...(a.prazo ? { prazo: formatarData(a.prazo) } : {}),
+    ...(a.enviadoEm ? { enviadoEm: formatarData(a.enviadoEm) } : {}),
+    ...(notaFinal !== undefined ? { nota: notaFinal } : {}),
+    ...(a.notaGeral !== undefined ? { notaGeral: a.notaGeral } : {}),
+    ...(a.compreensao ? { compreensao: a.compreensao } : {}),
+    ...(a.observacao ? { observacao: a.observacao } : {}),
+    ...(a.respostaProfessor ? { respostaProfessor: a.respostaProfessor } : {}),
+  }
+}
 
 /** Perguntas novas (criadas na tela) não têm id do servidor: a API gera. */
 export const perguntaParaApi = (p: Pergunta) => ({

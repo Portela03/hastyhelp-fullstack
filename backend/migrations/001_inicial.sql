@@ -62,6 +62,7 @@ CREATE TABLE envios (
   status         TEXT NOT NULL CHECK (status IN ('rascunho', 'enviado')),
   respostas      JSONB NOT NULL,
   nota           NUMERIC(4, 1),
+  nota_geral     NUMERIC(3, 1),
   compreensao    CHAR(1) CHECK (compreensao IN ('I', 'P', 'C')),
   observacao     TEXT,
   enviado_em     TIMESTAMPTZ,

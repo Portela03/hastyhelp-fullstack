@@ -29,6 +29,8 @@ export interface AutoavaliacaoAluno {
   prazo?: string
   enviadoEm?: string
   nota?: number
+  /** Nota geral do conteúdo desta autoavaliação, escala 0–10 em intervalos de 0,5. */
+  notaGeral?: number
   compreensao?: Dificuldade
   /** O professor decide se o gabarito aparece para o aluno. */
   mostrarGabarito: boolean
@@ -68,6 +70,11 @@ export function calcularNota(a: Pick<AutoavaliacaoAluno, 'perguntas' | 'resposta
   if (comGabarito.length === 0) return undefined
   const acertos = comGabarito.filter((p) => acertou(p, a.respostas)).length
   return Math.round((acertos / comGabarito.length) * 100) / 10
+}
+
+export function calcularMediaAvaliacoes(notas: number[]) {
+  if (notas.length === 0) return undefined
+  return Math.round((notas.reduce((total, nota) => total + nota, 0) / notas.length) * 10) / 10
 }
 
 /** O aluno só pode alterar enquanto não enviou nem encerrou. */

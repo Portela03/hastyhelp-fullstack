@@ -20,6 +20,7 @@ import {
   SearchBox,
   SelectField,
   SortButton,
+  SliderNotaGeral,
   StatusAlunoPill,
   StatusPill,
   TeamBadge,
@@ -70,6 +71,7 @@ export function DesignSystem() {
   const [filtro, setFiltro] = useState('')
   const [select, setSelect] = useState('')
   const [senha, setSenha] = useState('')
+  const [notaGeral, setNotaGeral] = useState(7.5)
 
   return (
     <div className="mx-auto flex max-w-[1100px] flex-col gap-5 p-4 sm:p-10">
@@ -164,6 +166,7 @@ export function DesignSystem() {
       </Bloco>
 
       <Bloco titulo="Progresso e indicadores">
+        <SliderNotaGeral value={notaGeral} onChange={setNotaGeral} />
         <div className="max-w-[360px]">
           <ProgressBar value={43} label="Taxa de resposta" />
         </div>

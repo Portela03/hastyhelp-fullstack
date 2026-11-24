@@ -15,6 +15,7 @@ import {
   ProgressBar,
   SearchBox,
   SortButton,
+  SliderNotaGeral,
   StatusAlunoPill,
   TeamBadge,
 } from '../components/ui'
@@ -22,6 +23,7 @@ import { ExcluirModal } from '../components/modals'
 import {
   ROTULO_STATUS_ALUNO,
   acertou,
+  calcularMediaAvaliacoes,
   completa,
   editavel,
   formatarNota,
@@ -31,7 +33,7 @@ import {
 import type { AutoavaliacaoAluno } from '../data/aluno'
 import { PERIODOS } from '../data/tipos'
 import { CartaoPosEnvioSatisfacao, PesquisaSatisfacaoModal } from '../components/PesquisaSatisfacao'
-import type { Dificuldade, Equipe } from '../data/tipos'
+import type { Equipe } from '../data/tipos'
 import { useStore } from '../store'
 
 /* Auxiliares */
@@ -42,25 +44,15 @@ function paraData(s?: string) {
   return new Date(2000 + a, m - 1, d).getTime()
 }
 
-function media(valores: number[]) {
-  return valores.length ? valores.reduce((a, b) => a + b, 0) / valores.length : undefined
-}
-
 function estatisticas(lista: AutoavaliacaoAluno[]) {
   const enviadas = lista.filter((a) => a.status === 'respondido')
   const notas = enviadas.flatMap((a) => (a.nota === undefined ? [] : [a.nota]))
-  const contagem = enviadas.reduce<Partial<Record<Dificuldade, number>>>((acc, a) => {
-    if (a.compreensao) acc[a.compreensao] = (acc[a.compreensao] ?? 0) + 1
-    return acc
-  }, {})
-  const maior = (Object.entries(contagem) as Array<[Dificuldade, number]>).sort((a, b) => b[1] - a[1])[0]?.[0]
   return {
     total: lista.length,
     respondidas: enviadas.length,
     abertas: lista.filter((a) => editavel(a.status)).length,
     participacao: lista.length ? Math.round((enviadas.length / lista.length) * 100) : 0,
-    notaMedia: media(notas),
-    maiorDificuldade: maior,
+    notaMedia: calcularMediaAvaliacoes(notas),
     evolucao: [...enviadas].sort((a, b) => paraData(a.enviadoEm) - paraData(b.enviadoEm)),
   }
 }
@@ -453,13 +445,12 @@ export function AlunoTurmaResumo() {
       </header>
       <div className="flex flex-wrap gap-3.5">
         <KpiCard className="min-w-[200px] gap-1" titulo="Participação" valor={`${est.participacao}%`} detalhe={`${est.respondidas} de ${est.total} respondidas`} />
-        <KpiCard className="min-w-[200px] gap-1" titulo="Nota média" valor={est.notaMedia === undefined ? '—' : `${formatarNota(est.notaMedia)}/10`} detalhe="Suas autoavaliações enviadas" />
         <KpiCard className="min-w-[200px] gap-1" titulo="Última nota" valor={ultima?.nota === undefined ? '—' : `${formatarNota(ultima.nota)}/10`} detalhe={ultima ? ultima.titulo : 'Nenhuma enviada'} />
         <KpiCard
           className="min-w-[200px] gap-1"
-          titulo="Maior dificuldade"
-          valor={est.maiorDificuldade ? <DifficultyLetter letra={est.maiorDificuldade} className="text-[25px]" /> : '—'}
-          detalhe="Nível mais frequente"
+          titulo="Média das avaliações"
+          valor={est.notaMedia === undefined ? '—' : `${formatarNota(est.notaMedia)}/10`}
+          detalhe="Média das notas enviadas"
         />
       </div>
       <div className="flex flex-col gap-4 lg:flex-row">
@@ -574,6 +565,7 @@ export function AlunoRespostas() {
         {a.perguntas.map((p, i) => (
           <PerguntaCard key={p.id} pergunta={p} indice={i} marcadas={a.respostas[p.id] ?? []} mostrarGabarito={a.mostrarGabarito && !!p.gabarito} />
         ))}
+        {a.notaGeral !== undefined && <SliderNotaGeral value={a.notaGeral} leitura />}
       </div>
     </>
   )
@@ -585,10 +577,11 @@ function Responder({ a }: { a: AutoavaliacaoAluno }) {
   const [etapa, setEtapa] = useState<'responder' | 'revisar'>('responder')
   const [confirmar, setConfirmar] = useState(false)
   const [observacao, setObservacao] = useState('')
-  const pronta = completa(a)
+  const [notaGeral, setNotaGeral] = useState<number>()
+  const pronta = completa(a) && notaGeral !== undefined
 
   async function enviar() {
-    const ok = await enviarAutoavaliacao(a.id, observacao.trim() || undefined)
+    const ok = await enviarAutoavaliacao(a.id, observacao.trim() || undefined, notaGeral)
     setConfirmar(false)
     if (ok) navigate(`/aluno/autoavaliacoes/${a.id}/resultado`)
   }
@@ -632,6 +625,7 @@ function Responder({ a }: { a: AutoavaliacaoAluno }) {
               className="rounded-lg border border-line-input bg-white px-3 py-2 text-[16px] text-ink outline-none focus-visible:border-ink"
             />
           </div>
+          <SliderNotaGeral value={notaGeral} leitura />
         </section>
         <div className="flex w-full max-w-[520px] flex-col gap-2">
           <div className="flex gap-3">
@@ -664,12 +658,15 @@ function Responder({ a }: { a: AutoavaliacaoAluno }) {
         {a.perguntas.map((p, i) => (
           <PerguntaCard key={p.id} pergunta={p} indice={i} marcadas={a.respostas[p.id] ?? []} onChange={(m) => salvarResposta(a.id, p.id, m)} />
         ))}
+        <SliderNotaGeral value={notaGeral} onChange={setNotaGeral} />
       </div>
       <div className="flex w-full max-w-[520px] flex-col gap-2">
         <div className="flex gap-3">
-          <ButtonBrown onClick={() => setEtapa('revisar')}>Revisar respostas</ButtonBrown>
+          <ButtonBrown disabled={!pronta} onClick={() => setEtapa('revisar')}>Revisar respostas</ButtonBrown>
         </div>
-        <p className="text-[14px] text-muted">Suas respostas são salvas automaticamente enquanto você responde.</p>
+        <p className="text-[14px] text-muted">
+          {notaGeral === undefined ? 'Selecione sua nota geral antes de revisar.' : 'Suas respostas são salvas automaticamente enquanto você responde.'}
+        </p>
       </div>
     </>
   )
@@ -681,9 +678,8 @@ export function AlunoResultado() {
   const [pesquisaAberta, setPesquisaAberta] = useState(false)
   if (a.status !== 'respondido') return <Navigate to={`/aluno/autoavaliacoes/${a.id}`} replace />
   const daTurma = estatisticas(autoavaliacoes.filter((x) => x.turmaId === a.turmaId)).evolucao
-  const idx = daTurma.findIndex((x) => x.id === a.id)
-  const anterior = idx > 0 ? daTurma[idx - 1] : undefined
-  const variacao = a.nota !== undefined && anterior?.nota !== undefined ? a.nota - anterior.nota : undefined
+  const notasDaEquipe = daTurma.flatMap((item) => (item.nota === undefined ? [] : [item.nota]))
+  const mediaGeral = calcularMediaAvaliacoes(notasDaEquipe)
   const acertos = a.perguntas.filter((p) => p.gabarito && acertou(p, a.respostas)).length
   const comGabarito = a.perguntas.filter((p) => p.gabarito).length
   return (
@@ -716,10 +712,10 @@ export function AlunoResultado() {
         />
         <KpiCard
           className="min-w-[200px] gap-1"
-          titulo="Evolução"
-          valor={variacao === undefined ? '—' : `${variacao > 0 ? '+' : ''}${formatarNota(variacao)}`}
-          destaque={variacao !== undefined && variacao > 0}
-          detalhe={anterior ? `Desde "${anterior.titulo}"` : 'Primeira autoavaliação da equipe'}
+          titulo="Média geral"
+          valor={mediaGeral === undefined ? '—' : `${formatarNota(mediaGeral)}/10`}
+          destaque
+          detalhe="Média das suas notas na equipe"
         />
       </div>
       {a.observacao && (
@@ -786,14 +782,13 @@ export function AlunoDesempenho() {
           <p className="text-[13px] text-muted">{`Consolidado das suas equipes · semestre ${periodo || '—'}`}</p>
         </header>
         <div className="flex flex-wrap gap-3.5">
-          <KpiCard className="min-w-[200px] gap-[7px]" titulo="Nota média" valor={est.notaMedia === undefined ? '—' : `${formatarNota(est.notaMedia)}/10`} destaque detalhe="Autoavaliações enviadas" detalheTamanho={13} />
           <KpiCard className="min-w-[200px] gap-[7px]" titulo="Participação" valor={`${est.participacao}%`} detalhe={`${est.respondidas} de ${est.total} respondidas`} detalheTamanho={13} />
           <KpiCard className="min-w-[200px] gap-[7px]" titulo="Para responder" valor={est.abertas} detalhe="Pendentes ou em andamento" detalheTamanho={13} />
           <KpiCard
             className="min-w-[200px] gap-[7px]"
-            titulo="Maior dificuldade"
-            valor={est.maiorDificuldade ? <DifficultyLetter letra={est.maiorDificuldade} /> : '—'}
-            detalhe="Nível mais frequente"
+            titulo="Média das avaliações"
+            valor={est.notaMedia === undefined ? '—' : `${formatarNota(est.notaMedia)}/10`}
+            detalhe="Média das notas enviadas"
             detalheTamanho={13}
           />
         </div>

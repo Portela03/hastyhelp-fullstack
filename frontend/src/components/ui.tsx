@@ -14,6 +14,76 @@ export function cx(...c: Array<string | false | null | undefined>) {
   return c.filter(Boolean).join(' ')
 }
 
+export function SliderNotaGeral({
+  value,
+  onChange,
+  leitura = false,
+}: {
+  value?: number
+  onChange?: (value: number) => void
+  leitura?: boolean
+}) {
+  const id = useId()
+  const nota = value ?? 0
+  const tamanhoIndicador = 44
+  const posicaoReal = (percentual: number) =>
+    `calc(${percentual * 100}% + ${(0.5 - percentual) * tamanhoIndicador}px)`
+  return (
+    <fieldset className="flex flex-col gap-3 rounded-xl border border-line bg-page p-4">
+      <legend className="text-[18px] font-semibold text-ink">
+        De 0 a 10 quanto você avalia seu conhecimento em relação ao conteúdo desta autoavaliação?
+      </legend>
+      <div className="relative flex flex-col gap-2">
+        <div className="relative h-14">
+          <div className="absolute left-0 right-0 top-[28px] h-2 rounded-full bg-line" aria-hidden />
+          <div
+            className="pointer-events-none absolute top-[10px] z-10 flex size-11 -translate-x-1/2 items-center justify-center rounded-full border-2 border-ink bg-ink text-[16px] font-bold text-white shadow-card"
+            style={{ left: posicaoReal(nota / 10) }}
+          >
+            {nota.toLocaleString('pt-BR', { minimumFractionDigits: nota % 1 ? 1 : 0, maximumFractionDigits: 1 })}
+          </div>
+          <input
+            id={id}
+            aria-label="Nota geral do conteúdo"
+            type="range"
+            min={0}
+            max={10}
+            step={0.5}
+            value={nota}
+            disabled={leitura}
+            onChange={(event) => onChange?.(Number(event.target.value))}
+            className="absolute left-0 top-[10px] z-20 h-11 w-full cursor-pointer appearance-none bg-transparent disabled:cursor-default [&::-moz-range-thumb]:size-11 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-transparent [&::-webkit-slider-runnable-track]:h-2 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:mt-[-18px] [&::-webkit-slider-thumb]:size-11 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-0 [&::-webkit-slider-thumb]:bg-transparent"
+          />
+        </div>
+        <div className="relative h-5 text-[12px] text-muted" aria-hidden>
+          {Array.from({ length: 10 }, (_, i) => {
+            const ponto = i + 1
+            const meio = (ponto - 0.5) / 10
+            return (
+              <span
+                key={`separador-${ponto}`}
+                className="absolute -translate-x-1/2 text-[11px] font-normal text-placeholder"
+                style={{ left: posicaoReal(meio) }}
+              >
+                |
+              </span>
+            )
+          })}
+          {Array.from({ length: 11 }, (_, i) => (
+            <span
+              key={i}
+              className="absolute -translate-x-1/2 text-center text-[14px] font-semibold text-muted"
+              style={{ left: posicaoReal(i / 10) }}
+            >
+              {i}
+            </span>
+          ))}
+        </div>
+      </div>
+    </fieldset>
+  )
+}
+
 export function Icon({ name, round = true, className }: { name: string; round?: boolean; className?: string }) {
   const tamanho = className?.match(/text-\[(\d+)px\]/)
   return (

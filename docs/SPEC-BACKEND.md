@@ -100,7 +100,7 @@ Exclusões em cascata: turma → matrículas, formulários → perguntas, envios
 - **R-45** Nota = acertos ÷ perguntas com gabarito × 10, uma casa decimal; sem gabarito → sem nota ("em análise").
 - **R-46** Nível de compreensão (`I`/`P`/`C`) derivado das opções IPC marcadas pelo aluno na autoavaliação; quando houver mais de uma categoria, prevalece a pior (`C` > `P` > `I`). Sem categoria marcada (inclusive quando só marcou "Não tive tempo / Deixei em branco"), não há nível. Fora da opção fixa, o nível continua derivado da nota: ≥ 8 → `I`; ≥ 6 → `P`; senão `C` *(assumido; confirmar significado com a equipe)*.
 - **R-47** Gabarito só é enviado ao aluno quando `mostrarGabarito` e o envio está enviado ou o formulário encerrou.
-- **R-48** Envio guarda aluno, turma e formulário (RF04) e aceita `observacao` opcional.
+- **R-48** Envio guarda aluno, turma e formulário (RF04), aceita `observacao` opcional e uma `notaGeral` em escala de 0 a 10, em intervalos de 0,5. Esse valor é a nota final da autoavaliação e alimenta “Minha nota”, médias e evolução. A interface exige o valor antes do envio; a API aceita ausência para compatibilidade com envios existentes e rejeita valores fora da escala ou com intervalo inferior a 0,5 (`NOTA_GERAL_INVALIDA`).
 
 ### Análise (RF05–RF08)
 - **R-50** *Maior dificuldade* de um conjunto de envios = nível mais frequente entre `I/P/C`; empate resolve para o pior (`C` > `P` > `I`); sem envios → `null`.

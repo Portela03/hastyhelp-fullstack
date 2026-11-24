@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { cenarioPublicado, criarContexto, responderEEnviar } from '../../../app/testes/contexto.ts'
 import type { Contexto } from '../../../app/testes/contexto.ts'
+import { notasDe } from './dados.ts'
 
 /** Sarah acerta tudo (nota 10, I); James erra a 1ª (nota 5, C); Lisa só começa; Michael fica pendente. */
 async function cenarioComRespostas() {
@@ -14,6 +15,14 @@ async function cenarioComRespostas() {
 }
 
 describe('análise do formulário', () => {
+  it('R-53 usa notaGeral como nota final nos resumos', () => {
+    const envios = [
+      { notaGeral: 8.5 },
+      { nota: 7, notaGeral: 7.5 },
+      { nota: 3.3 },
+    ] as Parameters<typeof notasDe>[0]
+    expect(notasDe(envios)).toEqual([8.5, 7.5, 3.3])
+  })
   it('R-30/R-51/R-52 estatísticas na listagem', async () => {
     const { ctx, prof } = await cenarioComRespostas()
     const [f] = await ctx.uc.analise.formularios.executar(prof, {})
