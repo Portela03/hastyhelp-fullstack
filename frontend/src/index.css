@@ -33,6 +33,8 @@
   --color-diff-i: #5ab3d4;
   --color-diff-p: #a08d77;
   --color-diff-c: #ee5e5e;
+  /* texto de erro: diff-c é cor de gráfico e não passa 4,5:1 sobre branco */
+  --color-erro: #c62828;
   --color-bar-gray: #bebebe;
   
 
@@ -125,6 +127,7 @@ body[data-tema='escuro'] {
   --color-diff-i: #70c4df;
   --color-diff-p: #9f82bc;
   --color-diff-c: #f17979;
+  --color-erro: #f17979;
   --color-bar-gray: #69656f;
 
   --shadow-card: 0.5px 0.5px 0 #000000;
@@ -238,12 +241,18 @@ body[data-tema='alto-contraste'] {
   --color-diff-i: #70d7ff;
   --color-diff-p: #ffff00;
   --color-diff-c: #ff7070;
+  --color-erro: #ff7070;
   --color-bar-gray: #ffffff;
 
   --shadow-card: 2px 2px 0 #ffffff;
   --shadow-card-hover: 3px 3px 0 #50d0a0;
   --shadow-btn: 2px 2px 0 #ffffff;
   --shadow-btn-hover: 3px 3px 0 #50d0a0;
+}
+
+/* diálogos precisam de contorno: sem ele o fundo preto se confunde com a página */
+body[data-tema='alto-contraste'] [role='dialog'] {
+  border: 2px solid #ffffff;
 }
 
 body[data-tema='alto-contraste'] .bg-white,

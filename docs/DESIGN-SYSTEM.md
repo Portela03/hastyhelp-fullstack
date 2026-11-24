@@ -39,6 +39,7 @@ Estilo **acolhedor e sóbrio**: paleta terrosa (bege/marrom) sobre fundo quase b
 | `track` | `#e7e1d9` | trilho de barras de progresso |
 | `ok` | `#34785c` | valor positivo / barra destacada |
 | `diff-i` `diff-p` `diff-c` | `#5ab3d4` `#a08d77` `#ee5e5e` | dificuldade **I / P / C** |
+| `erro` | `#c62828` (escuro `#f17979`, alto-contraste `#ff7070`) | **texto** de erro/aviso negativo (≥ 4,5:1); `diff-c` é só cor de gráfico |
 | `bar-gray` | `#bebebe` | barras sem dado ("??%") |
 
 **Cores de equipe** (`CORES_EQUIPE`): `#8fcbc5` (padrão) · `#f3ae8d` · `#f27c7e` · `#8df3b6` · `#df8bb3` · `#b98fcb`.
@@ -124,7 +125,7 @@ Sidebar fixa **220px** + coluna fluida; topbar **54px**; conteúdo com `gap-5`; 
 1. **Página autenticada** = `AppShell` → `Banner` → (`TabBar` | `Toolbar`) → conteúdo. Nunca criar outro shell.
 2. **Lista de cards/linhas**: item branco, borda `card-line` (equipes) ou `line-input` (formulários), raio 8, `TeamBadge` à esquerda, dado principal em semibold 16, status à direita.
 3. **Dashboard**: painel branco `border-line` raio 12 → linha de `KpiCard` (4 colunas, `flex-wrap`) → `Panel`s em `panel`. Gráficos são CSS/SVG simples com `role="img"` e `aria-label`.
-4. **Formulário/modal**: rótulo 18px acima do campo; campos com borda `placeholder`; ações `ButtonBrown` (esquerda) + `ButtonGhost`; erro em `text-diff-c` com `role="alert"`.
+4. **Formulário/modal**: rótulo 18px acima do campo; campos com borda `placeholder`; ações `ButtonBrown` (esquerda) + `ButtonGhost`; erro em `text-erro` com `role="alert"`; alvos de toque ≥ 44px (`min-h-11`) nos controles dos modais.
 5. **Tabela**: `DataTable`; primeira coluna com `Avatar` 32px + nome semibold; números centralizados.
 6. **Estados vazios**: texto `text-muted` 16px simples, sem ilustração.
 7. **Acessibilidade**: `label` em todo campo, foco visível, `aria-*` em barras/abas/modais, alvo de clique ≥ 32px, contraste mínimo AA (texto `muted` só sobre fundo claro).
