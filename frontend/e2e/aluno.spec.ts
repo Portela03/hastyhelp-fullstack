@@ -12,10 +12,13 @@ async function cenario(extra: object = {}) {
 
 const pergunta = (page: import('@playwright/test').Page, enunciado: string) => page.getByRole('group', { name: enunciado })
 
+const darNotaGeral = (page: import('@playwright/test').Page, nota = '8') => page.getByLabel('Nota geral do conteúdo').fill(nota)
+
 async function responderPelaUI(page: import('@playwright/test').Page) {
   await pergunta(page, 'Qual é a média de 2 e 4?').getByLabel('3', { exact: true }).check()
   await pergunta(page, 'Quais números são pares?').getByLabel('2', { exact: true }).check()
   await pergunta(page, 'Quais números são pares?').getByLabel('4', { exact: true }).check()
+  await darNotaGeral(page)
 }
 
 test.describe('RF03 - aluno responde as autoavaliações', () => {
@@ -39,10 +42,12 @@ test.describe('RF03 - aluno responde as autoavaliações', () => {
     await expect(page.getByRole('heading', { name: 'Revise suas respostas' })).toBeVisible()
     await page.getByLabel('Observações (opcional)').fill('Gostei dos exemplos')
     await page.getByRole('button', { name: 'Enviar', exact: true }).click()
-    await page.getByRole('dialog').getByRole('button', { name: 'Enviar' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Enviar', exact: true }).click()
 
     await expect(page).toHaveURL(new RegExp(`/aluno/autoavaliacoes/${form.id}/resultado`))
-    await expect(page.getByText('10,0/10').first()).toBeVisible()
+    // a nota final passa a ser a nota geral informada pelo aluno (R-53), não só o gabarito
+    await expect(page.getByText('8,0/10').first()).toBeVisible()
+    await expect(page.getByText('2/2')).toBeVisible()
     // aluno não pode mais alterar (RNF05): API recusa
     await expect(chamar('PUT', `/aluno/autoavaliacoes/${form.id}/respostas/${form.perguntas[0]!.id}`, { marcadas: [1] }, aluno.token)).rejects.toThrow(/409/)
   })
@@ -52,9 +57,10 @@ test.describe('RF03 - aluno responde as autoavaliações', () => {
     await entrarPelaUI(page, aluno)
     await page.goto(`/aluno/autoavaliacoes/${form.id}`)
     await pergunta(page, 'Qual é a média de 2 e 4?').getByLabel('4', { exact: true }).check()
-    await page.getByRole('button', { name: 'Revisar respostas' }).click()
-    await expect(page.getByText('Sem resposta')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Enviar', exact: true })).toBeDisabled()
+    await darNotaGeral(page)
+    // com pergunta sem resposta a revisão nem é liberada (N05)
+    await expect(page.getByRole('button', { name: 'Revisar respostas' })).toBeDisabled()
+    await expect(page.getByText('Selecione sua nota geral antes de revisar.')).toHaveCount(0)
   })
 
   test('RF04 - as respostas são salvas na hora e voltam ao recarregar (em andamento)', async ({ page }) => {

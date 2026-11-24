@@ -75,3 +75,10 @@ export async function entrarPelaUI(page: Page, u: Pick<Usuario, 'email' | 'senha
   await page.getByRole('button', { name: 'Concluir' }).click()
   await expect(page).toHaveURL(u.papel === 'aluno' ? /\/aluno\/turmas/ : /\/equipes/)
 }
+
+/** Confirma o modal de exclusão/remoção (checkbox de irreversibilidade + botão de confirmação). */
+export async function confirmarExclusao(page: Page, rotulo: 'Excluir' | 'Remover aluno' | 'Sair da equipe' = 'Excluir') {
+  const dialogo = page.getByRole('dialog')
+  await dialogo.getByLabel('Sim, entendo que esta ação é irreversível.').check()
+  await dialogo.getByRole('button', { name: rotulo, exact: true }).click()
+}
