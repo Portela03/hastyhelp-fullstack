@@ -212,6 +212,9 @@ export function criarApp({ uc, infra }: Container, opcoes: { exporCaixaDeSaida?:
   professor.get('/turmas/:id/alunos-para-convite', rota(async (req, res) => {
     res.json(await uc.turmas.buscarAlunos.executar(atorDe(res), param(req, 'id'), String(req.query.busca ?? '')))
   }))
+  professor.post('/turmas/:id/codigo', rota(async (req, res) => {
+    res.json(await uc.turmas.gerarNovoCodigo.executar(atorDe(res), param(req, 'id')))
+  }))
   professor.post('/turmas/:id/convites', rota(async (req, res) => {
     res.status(201).json(await uc.turmas.convidarAluno.executar(atorDe(res), param(req, 'id'), ESQ.convidarAluno.parse(req.body).alunoId))
   }))
@@ -255,6 +258,11 @@ export function criarApp({ uc, infra }: Container, opcoes: { exporCaixaDeSaida?:
     res.status(r.status === 'matriculado' ? 201 : 202).json(r)
   }))
   aluno.get('/aluno/convites', rota(async (_req, res) => void res.json(await uc.turmas.listarConvites.executar(atorDe(res)))))
+  aluno.get('/aluno/solicitacoes', rota(async (_req, res) => void res.json(await uc.turmas.listarSolicitacoes.executar(atorDe(res)))))
+  aluno.delete('/aluno/solicitacoes/:id', rota(async (req, res) => {
+    await uc.turmas.cancelarSolicitacao.executar(atorDe(res), param(req, 'id'))
+    res.status(204).end()
+  }))
   aluno.post('/aluno/convites/:id/aceitar', rota(async (req, res) => {
     await uc.turmas.responderConvite.executar(atorDe(res), param(req, 'id'), 'aceitar')
     res.status(204).end()

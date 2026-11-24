@@ -4,21 +4,24 @@ import type { GeradorId, Relogio } from '../../../shared/portas.ts'
 import { normalizarBusca } from '../../../shared/texto.ts'
 import type { UsuarioRepositorio } from '../../identidade/domain/usuario.ts'
 import type { EmissorDeNotificacoes } from '../../notificacoes/application/emissor.ts'
+import { EntradaPendenteDuplicada } from '../domain/entrada.ts'
 import type { EntradaRepositorio } from '../domain/entrada.ts'
+import type { LimitadorDeTaxa } from '../../../shared/limitador.ts'
 import type { TurmaRepositorio } from '../domain/repositorio.ts'
 import { turmaDoDocente } from './acesso.ts'
 
 const MINIMO_BUSCA = 3
 const LIMITE_BUSCA = 10
 
-/** R-107: procura alunos cadastrados (nome ou e-mail) que ainda não estão na turma. */
+/** R-107: procura alunos cadastrados (nome ou e-mail) que ainda não estão na turma. R-116: com limite de taxa por professor. */
 export class BuscarAlunosParaConvite {
-  constructor(private readonly d: { turmas: TurmaRepositorio; usuarios: UsuarioRepositorio; entradas: EntradaRepositorio }) {}
+  constructor(private readonly d: { turmas: TurmaRepositorio; usuarios: UsuarioRepositorio; entradas: EntradaRepositorio; limitadorDeBuscas: LimitadorDeTaxa }) {}
 
   async executar(ator: Ator, turmaId: string, busca: string) {
     await turmaDoDocente(this.d.turmas, ator, turmaId)
     const termo = normalizarBusca(busca)
     if (termo.length < MINIMO_BUSCA) throw new ErroDeDominio('BUSCA_CURTA', `Digite ao menos ${MINIMO_BUSCA} letras do nome ou do e-mail.`, 422)
+    if (!this.d.limitadorDeBuscas.tentar(ator.id)) throw new ErroDeDominio('MUITAS_BUSCAS', 'Muitas buscas em pouco tempo. Aguarde um instante e tente de novo.', 429)
     const naTurma = await this.d.turmas.alunosIds(turmaId)
     const [achados, pendentes] = await Promise.all([this.d.usuarios.buscarAlunos(termo, naTurma, LIMITE_BUSCA), this.d.entradas.pendentesDaTurma(turmaId)])
     const convidados = new Set(pendentes.filter((e) => e.origem === 'convite').map((e) => e.alunoId))
@@ -42,7 +45,15 @@ export class ConvidarAluno {
     if (pendente) throw conflito('SOLICITACAO_PENDENTE', 'Este aluno já pediu para entrar. Aceite o pedido na aba Código.')
 
     const id = this.d.ids.novo()
-    await this.d.entradas.salvar({ id, turmaId, alunoId, origem: 'convite', status: 'pendente', criadaEm: this.d.relogio.agora() })
+    try {
+      await this.d.entradas.salvar({ id, turmaId, alunoId, origem: 'convite', status: 'pendente', criadaEm: this.d.relogio.agora() })
+    } catch (erro) {
+      // R-115: outra requisição criou a entrada pendente no meio do caminho
+      if (!(erro instanceof EntradaPendenteDuplicada)) throw erro
+      const existente = await this.d.entradas.pendente(turmaId, alunoId)
+      if (existente?.origem === 'convite') throw conflito('CONVITE_JA_ENVIADO', 'Este aluno já foi convidado e ainda não respondeu.')
+      throw conflito('SOLICITACAO_PENDENTE', 'Este aluno já pediu para entrar. Aceite o pedido na aba Código.')
+    }
     const docente = await this.d.usuarios.porId(ator.id)
     await this.d.emissor.emitir([alunoId], {
       tipo: 'convite-turma',

@@ -8,6 +8,12 @@ export class TurmaRepositorioMemoria implements TurmaRepositorio {
   async salvar(t: Turma) {
     this.turmas.set(t.id, { ...t })
   }
+  async trocarCodigo(turmaId: string, codigo: string) {
+    const turma = this.turmas.get(turmaId)
+    if (!turma || [...this.turmas.values()].some((t) => t.codigoConvite === codigo)) return false
+    this.turmas.set(turmaId, { ...turma, codigoConvite: codigo })
+    return true
+  }
   async porId(id: string) {
     return this.turmas.get(id)
   }

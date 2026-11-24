@@ -15,7 +15,16 @@ export interface Entrada {
   resolvidaEm?: Date
 }
 
+/** R-115: já existe entrada pendente desse aluno nessa turma (corrida entre duas requisições). */
+export class EntradaPendenteDuplicada extends Error {
+  constructor() {
+    super('Já existe uma entrada pendente deste aluno nesta turma.')
+    this.name = 'EntradaPendenteDuplicada'
+  }
+}
+
 export interface EntradaRepositorio {
+  /** Lança `EntradaPendenteDuplicada` ao inserir uma pendente quando já há outra do mesmo aluno+turma. */
   salvar(entrada: Entrada): Promise<void>
   porId(id: string): Promise<Entrada | undefined>
   /** A entrada pendente do aluno nessa turma, se houver (no máximo uma). */
@@ -23,6 +32,8 @@ export interface EntradaRepositorio {
   pendentesDaTurma(turmaId: string): Promise<Entrada[]>
   /** Convites (origem `convite`) pendentes do aluno, mais recentes primeiro. */
   convitesPendentesDoAluno(alunoId: string): Promise<Entrada[]>
+  /** Pedidos (origem `codigo`) pendentes do aluno, mais recentes primeiro (R-118). */
+  solicitacoesPendentesDoAluno(alunoId: string): Promise<Entrada[]>
   /** Apaga as entradas da turma (R-112). */
   excluirDaTurma(turmaId: string): Promise<void>
 }

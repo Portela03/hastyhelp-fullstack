@@ -31,6 +31,9 @@ import { CriarTurma } from '../contexts/turmas/application/criar-turma.ts'
 import { EditarTurma } from '../contexts/turmas/application/editar-turma.ts'
 import { ExcluirTurma } from '../contexts/turmas/application/excluir-turma.ts'
 import { ListarTurmas } from '../contexts/turmas/application/listar-turmas.ts'
+import { GerarNovoCodigo } from '../contexts/turmas/application/gerar-novo-codigo.ts'
+import { CancelarSolicitacao, ListarSolicitacoes } from '../contexts/turmas/application/solicitacoes-do-aluno.ts'
+import { LimitadorDeTaxa } from '../shared/limitador.ts'
 import type { Infra } from './infra.ts'
 
 /** Composição: liga os casos de uso às implementações de infraestrutura. */
@@ -40,7 +43,9 @@ export function criarContainer(infra: Infra) {
   const emitirRedefinicao = new EmitirRedefinicao(infra)
   // Dependências completas: cada caso de uso pega só o que declara no construtor.
   const entrarNaTurma = new EntrarNaTurma({ ...infra, emissor })
-  const deps = { ...infra, emissor, publicacao, emitirRedefinicao, entrarNaTurma }
+  // R-116: 30 buscas de alunos por minuto, por professor (contador em memória desta instância)
+  const limitadorDeBuscas = new LimitadorDeTaxa(infra.relogio, 30, 60_000)
+  const deps = { ...infra, emissor, publicacao, emitirRedefinicao, entrarNaTurma, limitadorDeBuscas }
 
   const listarFormularios = new ListarFormulariosComEstatisticas(deps)
   const uc = {
@@ -72,6 +77,9 @@ export function criarContainer(infra: Infra) {
       convidarAluno: new ConvidarAluno(deps),
       listarConvites: new ListarConvites(deps),
       responderConvite: new ResponderConvite(deps),
+      gerarNovoCodigo: new GerarNovoCodigo(deps),
+      listarSolicitacoes: new ListarSolicitacoes(deps),
+      cancelarSolicitacao: new CancelarSolicitacao(deps),
     },
     formularios: {
       criar: new CriarFormulario(deps),

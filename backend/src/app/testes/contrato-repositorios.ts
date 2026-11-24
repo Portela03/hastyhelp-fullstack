@@ -7,6 +7,7 @@ import type { Envio } from '../../contexts/respostas/domain/envio.ts'
 import type { EnvioRepositorio } from '../../contexts/respostas/domain/repositorio.ts'
 import type { CaixaDeSaida, RedefinicaoRepositorio, SessaoRepositorio } from '../../contexts/identidade/domain/sessao.ts'
 import type { NotificacaoRepositorio } from '../../contexts/notificacoes/domain/notificacao.ts'
+import { EntradaPendenteDuplicada } from '../../contexts/turmas/domain/entrada.ts'
 import type { Entrada, EntradaRepositorio } from '../../contexts/turmas/domain/entrada.ts'
 import type { TurmaRepositorio } from '../../contexts/turmas/domain/repositorio.ts'
 import type { Turma } from '../../contexts/turmas/domain/turma.ts'
@@ -125,6 +126,49 @@ export function contratoRepositorios(nome: string, fabrica: () => Promise<Reposi
       await r.entradas.excluirDaTurma('t1')
       expect(await r.entradas.porId('e4')).toBeUndefined()
       expect((await r.entradas.porId('e3'))?.id).toBe('e3')
+    })
+
+    it('R-115 entradas: segunda pendente do mesmo aluno+turma (inclusive simultânea) é EntradaPendenteDuplicada', async () => {
+      await r.turmas.salvar(turma('t1', 'prof'))
+      const e = (id: string, origem: Entrada['origem']): Entrada => ({ id, turmaId: 't1', alunoId: 'al1', origem, status: 'pendente', criadaEm: t0 })
+      await r.entradas.salvar(e('e1', 'codigo'))
+      await expect(r.entradas.salvar(e('e2', 'convite'))).rejects.toBeInstanceOf(EntradaPendenteDuplicada)
+      // atualizar a própria entrada pendente continua permitido
+      await r.entradas.salvar({ ...e('e1', 'codigo'), status: 'recusada', resolvidaEm: t0 })
+      const corrida = await Promise.allSettled([r.entradas.salvar(e('e3', 'codigo')), r.entradas.salvar(e('e4', 'convite'))])
+      expect(corrida.filter((x) => x.status === 'fulfilled')).toHaveLength(1)
+      const rejeitada = corrida.find((x) => x.status === 'rejected')
+      expect(rejeitada && rejeitada.status === 'rejected' && rejeitada.reason).toBeInstanceOf(EntradaPendenteDuplicada)
+    })
+
+    it('R-118 entradas: solicitacoesPendentesDoAluno traz só pedidos (origem código) pendentes do aluno, recentes primeiro', async () => {
+      await r.turmas.salvar(turma('t1', 'prof'))
+      await r.turmas.salvar(turma('t2', 'prof'))
+      await r.turmas.salvar(turma('t3', 'prof'))
+      const e = (id: string, turmaId: string, alunoId: string, origem: Entrada['origem'], seg: number, status: Entrada['status'] = 'pendente'): Entrada => ({
+        id, turmaId, alunoId, origem, status, criadaEm: new Date(t0.getTime() + seg * 1000),
+      })
+      await r.entradas.salvar(e('s1', 't1', 'al1', 'codigo', 1))
+      await r.entradas.salvar(e('s2', 't2', 'al1', 'codigo', 2))
+      await r.entradas.salvar(e('s3', 't3', 'al1', 'convite', 3))
+      await r.entradas.salvar(e('s4', 't1', 'al2', 'codigo', 4))
+      await r.entradas.salvar(e('s5', 't3', 'al2', 'codigo', 5, 'cancelada'))
+      expect((await r.entradas.solicitacoesPendentesDoAluno('al1')).map((x) => x.id)).toEqual(['s2', 's1'])
+      expect((await r.entradas.solicitacoesPendentesDoAluno('al2')).map((x) => x.id)).toEqual(['s4'])
+    })
+
+    it('R-117 turmas: trocarCodigo muda o código; colisão com outra turma devolve false e nada muda', async () => {
+      await r.turmas.salvar(turma('t1', 'prof'))
+      await r.turmas.salvar(turma('t2', 'prof'))
+      expect(await r.turmas.trocarCodigo('t1', 'novo123')).toBe(true)
+      expect((await r.turmas.porCodigo('novo123'))?.id).toBe('t1')
+      expect(await r.turmas.porCodigo('cod-t1')).toBeUndefined()
+      expect(await r.turmas.trocarCodigo('t1', 'cod-t2')).toBe(false)
+      expect((await r.turmas.porId('t1'))?.codigoConvite).toBe('novo123')
+      expect((await r.turmas.porCodigo('cod-t2'))?.id).toBe('t2')
+      // salvar uma turma editada não desfaz o código novo
+      await r.turmas.salvar({ ...turma('t1', 'prof', 'novo123'), nome: 'Outra' })
+      expect((await r.turmas.porCodigo('novo123'))?.nome).toBe('Outra')
     })
 
     it('formulários: guarda perguntas em ordem, datas e gabarito; atualiza substituindo perguntas', async () => {

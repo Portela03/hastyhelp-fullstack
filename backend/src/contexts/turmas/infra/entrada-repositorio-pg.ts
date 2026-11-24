@@ -1,4 +1,5 @@
 import type pg from 'pg'
+import { EntradaPendenteDuplicada } from '../domain/entrada.ts'
 import type { Entrada, EntradaRepositorio, OrigemEntrada, StatusEntrada } from '../domain/entrada.ts'
 
 interface Linha {
@@ -20,12 +21,24 @@ export class EntradaRepositorioPg implements EntradaRepositorio {
   constructor(private readonly pool: pg.Pool) {}
 
   async salvar(e: Entrada) {
-    await this.pool.query(
-      `INSERT INTO entradas_turma (id, turma_id, aluno_id, origem, status, criada_em, resolvida_em)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (id) DO UPDATE SET status = $5, resolvida_em = $7`,
-      [e.id, e.turmaId, e.alunoId, e.origem, e.status, e.criadaEm, e.resolvidaEm ?? null],
-    )
+    try {
+      await this.pool.query(
+        `INSERT INTO entradas_turma (id, turma_id, aluno_id, origem, status, criada_em, resolvida_em)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (id) DO UPDATE SET status = $5, resolvida_em = $7`,
+        [e.id, e.turmaId, e.alunoId, e.origem, e.status, e.criadaEm, e.resolvidaEm ?? null],
+      )
+    } catch (erro) {
+      // R-115: violação do índice único parcial (corrida entre duas requisições)
+      if (typeof erro === 'object' && erro !== null && 'code' in erro && erro.code === '23505' && 'constraint' in erro && erro.constraint === 'entradas_turma_pendente_idx') {
+        throw new EntradaPendenteDuplicada()
+      }
+      throw erro
+    }
+  }
+  async solicitacoesPendentesDoAluno(alunoId: string) {
+    const r = await this.pool.query<Linha>("SELECT * FROM entradas_turma WHERE aluno_id = $1 AND origem = 'codigo' AND status = 'pendente' ORDER BY criada_em DESC, id", [alunoId])
+    return r.rows.map(paraEntrada)
   }
   async porId(id: string) {
     const r = await this.pool.query<Linha>('SELECT * FROM entradas_turma WHERE id = $1', [id])
