@@ -98,7 +98,7 @@ function AbaCodigo({ equipe }: { equipe: Equipe }) {
 
   const pendentes = dados?.solicitacoes ?? []
   return (
-    <div role="tabpanel" id="painel-membros" aria-labelledby="aba-codigo" className="flex w-full flex-col gap-4">
+    <div role="tabpanel" id="painel-membros" aria-labelledby="aba-codigo" className="flex w-full flex-col gap-3">
       <p className="text-[16px] text-ink">Passe o código para o aluno. Ele digita em <strong>Equipes → Entrar em equipe</strong>, mesmo já tendo conta.</p>
       <div className="flex flex-col items-center gap-3 rounded-lg border border-line-input bg-panel p-4">
         <span className="text-[14px] text-muted">Código da equipe</span>
@@ -113,7 +113,7 @@ function AbaCodigo({ equipe }: { equipe: Equipe }) {
         <span role="status" className="sr-only">{copiado === 'codigo' ? 'Código copiado.' : copiado === 'link' ? 'Link de convite copiado.' : ''}</span>
       </div>
 
-      <label className="flex min-h-11 cursor-pointer items-start gap-3">
+      <label className="flex min-h-11 cursor-pointer items-center gap-3">
         <input
           type="checkbox"
           role="switch"
@@ -129,7 +129,7 @@ function AbaCodigo({ equipe }: { equipe: Equipe }) {
               setMsg(mensagemDeErro(err))
             }
           }}
-          className="mt-1 size-5 cursor-pointer accent-[#a08d77]"
+          className="size-5 cursor-pointer accent-[#a08d77]"
         />
         <span className="flex flex-col">
           <span className="text-[18px] text-ink">Aprovar entradas manualmente</span>
@@ -142,7 +142,7 @@ function AbaCodigo({ equipe }: { equipe: Equipe }) {
       {msg && <p role="alert" className="text-[14px] text-erro">{msg}</p>}
       {erro && <p role="alert" className="text-[14px] text-erro">{erro}</p>}
 
-      <section aria-label="Pedidos de entrada" className="flex flex-col gap-2">
+      <section aria-label="Pedidos de entrada" className="flex flex-col gap-2 mt-2">
         <h3 className="text-[18px] font-semibold text-ink">Pedidos de entrada {pendentes.length > 0 && `(${pendentes.length})`}</h3>
         {pendentes.length === 0 ? (
           <p className="text-[16px] text-muted">Nenhum pedido aguardando.</p>
@@ -235,7 +235,7 @@ function AbaEmail({ equipe, onFechar }: { equipe: Equipe; onFechar: () => void }
     radios.current[destino]?.focus()
   }
   return (
-    <div role="tabpanel" id="painel-membros" aria-labelledby="aba-email" className="flex w-full flex-col gap-4">
+    <div role="tabpanel" id="painel-membros" aria-labelledby="aba-email" className="flex w-full flex-1 flex-col gap-4">
       <form onSubmit={pesquisar} role="search" className="flex w-full overflow-hidden rounded-lg border border-placeholder bg-white">
         <label htmlFor={idBusca} className="sr-only">Email ou nome do aluno</label>
         <input
@@ -307,7 +307,7 @@ function AbaEmail({ equipe, onFechar }: { equipe: Equipe; onFechar: () => void }
         </section>
       )}
 
-      <div className="flex w-full gap-3">
+      <div className="mt-auto flex w-full gap-3">
         <ButtonBrown className="min-h-11" onClick={() => void convidar()} disabled={!escolhido || escolhido.convidado || enviando}>
           Convidar
         </ButtonBrown>
@@ -320,7 +320,7 @@ function AbaEmail({ equipe, onFechar }: { equipe: Equipe; onFechar: () => void }
 export function AdicionarMembrosModal({ equipe, onClose }: { equipe: Equipe; onClose: () => void }) {
   const [aba, setAba] = useState<'codigo' | 'email'>('codigo')
   return (
-    <Modal title="Adicionar membros" icon="add" onClose={onClose} width={560}>
+    <Modal title="Adicionar membros" icon="add" onClose={onClose} width={520}>
       <SegmentedTabs
         rotulo="Como adicionar membros"
         abas={[
@@ -331,16 +331,18 @@ export function AdicionarMembrosModal({ equipe, onClose }: { equipe: Equipe; onC
         onChange={setAba}
         idPainel="painel-membros"
       />
-      {aba === 'codigo' ? (
-        <>
-          <AbaCodigo equipe={equipe} />
-          <div className="flex w-full">
-            <ButtonBrown className="min-h-11" onClick={onClose}>Fechar</ButtonBrown>
-          </div>
-        </>
-      ) : (
-        <AbaEmail equipe={equipe} onFechar={onClose} />
-      )}
+<div className="flex w-full min-h-[380px] flex-col">
+  {aba === 'codigo' ? (
+    <>
+      <AbaCodigo equipe={equipe} />
+      <div className="flex w-full mt-4">
+        <ButtonBrown className="min-h-11" onClick={onClose}>Fechar</ButtonBrown>
+      </div>
+    </>
+  ) : (
+    <AbaEmail equipe={equipe} onFechar={onClose} />
+  )}
+</div>
     </Modal>
   )
 }

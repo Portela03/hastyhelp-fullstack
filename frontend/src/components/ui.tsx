@@ -237,7 +237,7 @@ export function ButtonPrimary({ icon, iconRound = true, children, className, ...
       type="button"
       {...rest}
       className={cx(
-        'flex cursor-pointer items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-ink bg-btn px-3 py-1 text-[20px] font-medium text-ink shadow-btn',
+        'flex cursor-pointer items-center justify-center gap0.5 whitespace-nowrap rounded-lg border border-ink bg-btn px-3 py-1 text-[20px] font-medium text-ink shadow-btn',
         'transition duration-100',
         'hover:bg-btn-hover hover:shadow-btn-hover',
         'active:shadow-none',
@@ -304,7 +304,11 @@ export function SegmentedTabs<T extends string>({
   idPainel?: string
 }) {
   const refs = useRef<Array<HTMLButtonElement | null>>([])
-  // roving tabindex: setas movem o foco e ativam a aba (ativação automática)
+  const indiceAtivo = Math.max(
+    0,
+    abas.findIndex((a) => a.id === ativa),
+  )
+
   function aoTeclar(e: ReactKeyboardEvent<HTMLButtonElement>, indice: number) {
     const destino = proximoIndice(e.key, indice, abas.map(() => true), 'horizontal')
     if (destino === null) return
@@ -312,8 +316,22 @@ export function SegmentedTabs<T extends string>({
     onChange(abas[destino]!.id)
     refs.current[destino]?.focus()
   }
+
   return (
-    <div role="tablist" aria-label={rotulo} className="flex w-full overflow-hidden rounded-lg border border-ink bg-white">
+    <div
+      role="tablist"
+      aria-label={rotulo}
+      className="relative flex w-full items-center rounded-[9px] border border-placeholder bg-white"
+    >
+      <div
+        aria-hidden="true"
+        style={{
+          width: `${100 / abas.length}%`,
+          transform: `translateX(${indiceAtivo * 100}%)`,
+        }}
+        className="pointer-events-none absolute top-0 left-0 h-full rounded-lg bg-btn-brown outline transition-transform duration-250 ease-in-out"
+      />
+
       {abas.map((a, i) => (
         <button
           key={a.id}
@@ -329,8 +347,8 @@ export function SegmentedTabs<T extends string>({
           onClick={() => onChange(a.id)}
           onKeyDown={(e) => aoTeclar(e, i)}
           className={cx(
-            'min-h-11 flex-1 cursor-pointer px-3 py-2 text-[20px] transition duration-100',
-            ativa === a.id ? 'bg-btn-brown font-medium text-ink' : 'bg-white text-ink hover:bg-page',
+            'relative z-10 min-h-11 flex-1 cursor-pointer rounded-lg px-3 py-2 text-[20px] font-medium transition-colors',
+            ativa === a.id ? 'text-ink' : 'text-muted hover:text-ink',
           )}
         >
           {a.label}
@@ -428,18 +446,22 @@ export function ProgressBar({ value, label }: { value: number; label: string }) 
 
 /* Campos */
 
-export function Field({ label, className, ...rest }: { label: string } & InputHTMLAttributes<HTMLInputElement>) {
+export function Field({
+  label,
+  className,
+  ...rest
+}: { label: string } & InputHTMLAttributes<HTMLInputElement>) {
   const id = useId()
   return (
-    <div className="flex w-full flex-col gap-1">
-      <label htmlFor={id} className="text-[18px] text-ink">
+    <div className="flex w-full flex-col">
+      <label htmlFor={id} className="text-lg text-ink">
         {label}
       </label>
       <input
         id={id}
         {...rest}
         className={cx(
-          'w-full rounded-lg border border-placeholder bg-white p-3 text-[16px] text-ink placeholder:text-placeholder read-only:text-placeholder',
+          'h-10 w-full rounded-lg border border-placeholder bg-white px-3 text-sm text-ink outline-none transition placeholder:text-placeholder focus:border-ink read-only:text-placeholder',
           className,
         )}
       />
@@ -493,7 +515,7 @@ export function SelectField({
   placeholder,
   options,
   leading,
-  leadingPad = 52,
+  leadingPad = 44,
 }: {
   label: string
   value: string
@@ -505,19 +527,23 @@ export function SelectField({
 }) {
   const id = useId()
   return (
-    <div className="flex w-full flex-col gap-1">
-      <label htmlFor={id} className="text-[18px] text-ink">
+    <div className="flex w-full flex-col">
+      <label htmlFor={id} className="text-lg text-ink gap-2">
         {label}
       </label>
-      <div className="relative flex items-center rounded-lg border border-placeholder bg-white">
-        {leading && <div className="pointer-events-none absolute left-3 flex">{leading}</div>}
+      <div className="relative flex h-10 items-center rounded-lg border border-placeholder bg-white transition focus-within:border-ink">
+        {leading && (
+          <div className="pointer-events-none absolute left-3 flex items-center">
+            {leading}
+          </div>
+        )}
         <select
           id={id}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           style={leading ? { paddingLeft: leadingPad } : undefined}
           className={cx(
-            'w-full cursor-pointer appearance-none bg-transparent p-3 pr-10 text-[16px] outline-none',
+            'h-full w-full cursor-pointer appearance-none bg-transparent px-3 pr-9 text-sm outline-none',
             value ? 'text-ink' : 'text-placeholder',
           )}
         >
@@ -528,7 +554,11 @@ export function SelectField({
             </option>
           ))}
         </select>
-        <Icon name="keyboard_arrow_down" round={false} className="pointer-events-none absolute right-3 text-placeholder" />
+        <Icon
+          name="keyboard_arrow_down"
+          round={false}
+          className="pointer-events-none absolute right-2.5 text-[20px] text-placeholder"
+        />
       </div>
     </div>
   )
@@ -666,16 +696,16 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         style={{ maxWidth: width }}
-        className="my-auto flex w-full flex-col items-center gap-6 rounded-lg bg-white px-5 py-8 sm:px-9"
+        className="my-auto flex w-full flex-col items-center gap-5 rounded-lg bg-white px-5 py-7 sm:px-"
       >
         <h2
           id={titleId}
           className={cx(
-            'flex w-full items-center text-[22px] font-semibold text-ink',
+            'flex w-full items-center text-[22px] sm:!text-2xl font-semibold text-ink',
             titleClassName,
           )}
         >
-          <Icon name={icon} round={false} />
+          <Icon name={icon} round={false}/>
           {title}
         </h2>
 

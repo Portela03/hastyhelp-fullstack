@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { useStore } from '../store'
 import { AppShell, Banner } from '../components/layout'
 import { FilterSelect, Icon, SearchBox, cx } from '../components/ui'
+import { PesquisaSatisfacaoModal } from '../components/PesquisaSatisfacao'
 import { FAQ_INICIAL, ROTULO_PUBLICO, filtrarFaqPorBusca, filtrarFaqPorPapel } from '../data/faq'
+import { isPesquisaTrimestralPendente } from '../data/satisfacao'
 import type { PerguntaFaq, PublicoFaq } from '../data/faq'
 
 function ItemFaq({ pergunta, aberta, aoAlternar }: { pergunta: PerguntaFaq; aberta: boolean; aoAlternar: () => void }) {
@@ -33,11 +35,14 @@ function ItemFaq({ pergunta, aberta, aoAlternar }: { pergunta: PerguntaFaq; aber
 }
 
 export function Faq() {
-  const { sessao } = useStore()
+  const { sessao, pesquisas } = useStore()
   const papel = sessao?.papel ?? 'aluno'
+  const [pesquisaAberta, setPesquisaAberta] = useState(false)
   const [busca, setBusca] = useState('')
   const [filtroPublico, setFiltroPublico] = useState<PublicoFaq | ''>('')
   const [abertas, setAbertas] = useState<Set<string>>(new Set())
+  const pesquisasPerfil = pesquisas.filter((p) => p.perfil === papel)
+  const trimestralPendente = isPesquisaTrimestralPendente(pesquisasPerfil)
 
   const porPapel = filtrarFaqPorPapel(FAQ_INICIAL, papel)
   const porBusca = filtrarFaqPorBusca(porPapel, busca)
@@ -59,7 +64,26 @@ export function Faq() {
   const todasAbertas = visiveis.length > 0 && visiveis.every((p) => abertas.has(p.id))
 
   return (
-    <AppShell>
+    <AppShell
+      action={
+        <button
+          type="button"
+          onClick={() => setPesquisaAberta(true)}
+          aria-label="Avaliar o HastyHelp"
+          className="relative flex cursor-pointer items-center gap-1.5 rounded-lg border border-line-input bg-white px-2 py-1.5 text-[14px] font-medium text-ink transition hover:border-ink hover:bg-page sm:px-3"
+          title="Deixe sua opinião anônima sobre o HastyHelp"
+        >
+          <Icon name="rate_review" className="text-[18px] text-muted" />
+          <span className="hidden sm:inline">Avaliar o HastyHelp</span>
+          {trimestralPendente && (
+            <span
+              title="Pesquisa trimestral pendente"
+              className="absolute -right-1 -top-1 size-2.5 rounded-full bg-diff-c ring-2 ring-topbar"
+            />
+          )}
+        </button>
+      }
+    >
       <Banner
         titulo="Perguntas Frequentes"
         subtitulo="Encontre respostas rápidas sobre como usar o HastyHelp"
@@ -104,6 +128,12 @@ export function Faq() {
           ))
         )}
       </div>
+      {pesquisaAberta && (
+        <PesquisaSatisfacaoModal
+          onClose={() => setPesquisaAberta(false)}
+          gatilho="continua"
+        />
+      )}
     </AppShell>
   )
 }

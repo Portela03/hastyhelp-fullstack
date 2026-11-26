@@ -8,7 +8,9 @@ import { AppShell, Banner, BannerStat, DataTable, Section, TabBar, Toolbar } fro
 import { CriarEquipeModal, EditarEquipeModal, CriarFormularioModal, EditarFormularioModal, ExcluirModal } from '../components/modals'
 import { AdicionarMembrosModal } from '../components/modals-membros'
 import { LinkDeRedefinicaoModal, RespostasDoAlunoModal } from '../components/modals-alunos'
-import { Avatar, ButtonPrimary, DifficultyLetter, FilterSelect, KpiCard, Panel, ProgressBar, SearchBox, StatusPill, SortButton, TeamBadge, cx, OptionsMenu } from '../components/ui'
+import { Avatar, ButtonPrimary, DifficultyLetter, FilterSelect, Icon, KpiCard, Panel, ProgressBar, SearchBox, StatusPill, SortButton, TeamBadge, cx, OptionsMenu } from '../components/ui'
+import { filtrarEOrdenarAlunos } from '../data/alunos-turma'
+import type { AlunoDaTurma, OrdenacaoAluno } from '../data/alunos-turma'
 import { api } from '../api/client'
 import { useApi } from '../api/use-api'
 import { PERIODOS } from '../data/tipos'
@@ -58,14 +60,14 @@ function TeamCard({ equipe, onEditar, onAlternarVisibilidade }: TeamCardProps) {
               label={`Opções da equipe ${equipe.nome}`}
               items={[
                 {
-                  label: 'Adicionar membros',
-                  icon: 'person_add',
-                  onClick: () => setAdicionandoMembros(true),
-                },
-                {
                   label: 'Editar',
                   icon: 'edit',
                   onClick: () => onEditar(equipe),
+                },
+                {
+                  label: 'Adicionar membros',
+                  icon: 'person_add',
+                  onClick: () => setAdicionandoMembros(true),
                 },
                 {
                   label: equipe.oculta ? 'Exibir' : 'Ocultar',
@@ -258,14 +260,14 @@ export function EquipeDetalhe() {
             label={`Opções da equipe ${equipe.nome}`}
             items={[
               {
-                label: 'Adicionar membros',
-                icon: 'person_add',
-                onClick: () => setAdicionandoMembros(true),
-              },
-              {
                 label: 'Editar equipe',
                 icon: 'edit',
                 onClick: () => setEditar(true),
+              },
+              {
+                label: 'Adicionar membros',
+                icon: 'person_add',
+                onClick: () => setAdicionandoMembros(true),
               },
               {
                 label: equipe.oculta ? 'Exibir equipe' : 'Ocultar equipe',
@@ -589,31 +591,25 @@ const iniciaisDe = (nome: string) =>
 
 interface AlunosTurmaDTO {
   docentes: Array<{ id: string; nome: string }>
-  alunos: Array<{ id: string; nome: string; dominio: number | null; enviados: string }>
+  alunos: AlunoDaTurma[]
 }
 
-function LinkDeConvite({ codigo }: { codigo: string }) {
-  const [copiado, setCopiado] = useState(false)
-  const link = `${window.location.origin}/convite/${codigo}`
-  async function copiar() {
-    try {
-      await navigator.clipboard.writeText(link)
-      setCopiado(true)
-      setTimeout(() => setCopiado(false), 2000)
-    } catch {
-      /* sem permissão de área de transferência: o link continua visível para copiar à mão */
-    }
-  }
-  return (
-    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-line-input bg-white p-3">
-      <code aria-label="Link de convite" className="min-w-0 flex-1 break-all text-[16px] text-ink">
-        {link}
-      </code>
-      <button type="button" onClick={copiar} className="cursor-pointer rounded-lg border border-[#c9b8a0] bg-white px-3 py-1 text-[16px] text-[#a08d77]">
-        {copiado ? 'Copiado!' : 'Copiar link'}
-      </button>
-    </div>
-  )
+const ALUNOS_VAZIOS: AlunoDaTurma[] = []
+type OrdenacaoDaTabela = 'nome-asc' | 'nome-desc' | 'dominio-asc' | 'dominio-desc' | 'enviados-asc' | 'enviados-desc'
+
+const CONFIGURACAO_ORDENACAO: Record<OrdenacaoDaTabela, { campo: OrdenacaoAluno; crescente: boolean }> = {
+  'nome-asc': { campo: 'nome', crescente: true },
+  'nome-desc': { campo: 'nome', crescente: false },
+  'dominio-asc': { campo: 'dominio', crescente: true },
+  'dominio-desc': { campo: 'dominio', crescente: false },
+  'enviados-asc': { campo: 'enviados', crescente: true },
+  'enviados-desc': { campo: 'enviados', crescente: false },
+}
+
+function ehOrdenacaoDaTabela(valor: string): valor is OrdenacaoDaTabela {
+  return valor === 'nome-asc' || valor === 'nome-desc'
+    || valor === 'dominio-asc' || valor === 'dominio-desc'
+    || valor === 'enviados-asc' || valor === 'enviados-desc'
 }
 
 export function EquipeAlunos() {
@@ -624,9 +620,16 @@ export function EquipeAlunos() {
   const [linkDe, setLinkDe] = useState<{ nome: string; link: string } | null>(null)
   const [alunoRemovendo, setAlunoRemovendo] = useState<{ id: string; nome: string } | null>(null)
   const [adicionandoMembros, setAdicionandoMembros] = useState(false)
-  if (erro) return <p role="alert" className="text-[16px] text-diff-c">{erro}</p>
+  const [busca, setBusca] = useState('')
+  const [ordenacao, setOrdenacao] = useState<OrdenacaoDaTabela>('nome-asc')
   const docentes = dados?.docentes ?? []
-  const alunos = dados?.alunos ?? []
+  const alunos = dados?.alunos ?? ALUNOS_VAZIOS
+  const configuracaoOrdenacao = CONFIGURACAO_ORDENACAO[ordenacao]
+  const alunosFiltrados = useMemo(
+    () => filtrarEOrdenarAlunos(alunos, busca, configuracaoOrdenacao.campo, configuracaoOrdenacao.crescente),
+    [alunos, busca, configuracaoOrdenacao],
+  )
+  if (erro) return <p role="alert" className="text-[16px] text-diff-c">{erro}</p>
 
   const gerarLink = (aluno: { id: string; nome: string }) =>
     executar(async () => {
@@ -639,16 +642,38 @@ export function EquipeAlunos() {
       {respostasDe && <RespostasDoAlunoModal nome={respostasDe.nome} caminho={`/turmas/${equipe.id}/alunos/${respostasDe.id}/respostas`} onClose={() => setRespostasDe(null)} />}
       {linkDe && <LinkDeRedefinicaoModal nome={linkDe.nome} link={linkDe.link} onClose={() => setLinkDe(null)} />}
       {adicionandoMembros && <AdicionarMembrosModal equipe={equipe} onClose={() => setAdicionandoMembros(false)} />}
-      {equipe.codigoConvite && (
-        <AlunosSecao titulo="Convidar alunos">
-          <LinkDeConvite codigo={equipe.codigoConvite} />
-          <div>
-            <ButtonPrimary icon="person_add" onClick={() => setAdicionandoMembros(true)} className="!bg-btn-brown hover:!bg-btn-brown-hover !text-[16px]">
-              Adicionar membros
-            </ButtonPrimary>
-          </div>
-        </AlunosSecao>
-      )}
+
+      <Toolbar>
+        <SearchBox value={busca} onChange={setBusca} placeholder="Buscar alunos..." />
+        <div className="flex flex-wrap items-center gap-2.5">
+          <label className="relative inline-flex items-center rounded-lg border border-line-input bg-white text-[14px] text-ink">
+            <select
+              aria-label="Ordenar alunos"
+              value={ordenacao}
+              onChange={(e) => {
+                const valor = e.target.value
+                if (ehOrdenacaoDaTabela(valor)) setOrdenacao(valor)
+              }}
+              className="cursor-pointer appearance-none bg-transparent py-2 pl-3 pr-9 outline-none"
+            >
+              <option value="nome-asc">Nome do aluno (A-Z)</option>
+              <option value="nome-desc">Nome do aluno (Z-A)</option>
+              <option value="dominio-asc">Domínio médio (menor primeiro)</option>
+              <option value="dominio-desc">Domínio médio (maior primeiro)</option>
+              <option value="enviados-asc">Formulários enviados (menos primeiro)</option>
+              <option value="enviados-desc">Formulários enviados (mais primeiro)</option>
+            </select>
+            <Icon name="expand_more" className="pointer-events-none absolute right-3 text-[18px]" />
+          </label>
+          <ButtonPrimary
+            icon="person_add"
+            onClick={() => setAdicionandoMembros(true)}
+            className="!bg-btn-brown hover:!bg-btn-brown-hover !text-[16px]"
+          >
+            Adicionar alunos
+          </ButtonPrimary>
+        </div>
+      </Toolbar>
 
       {alunoRemovendo && (
         <ExcluirModal
@@ -671,9 +696,11 @@ export function EquipeAlunos() {
       <AlunosSecao titulo={`Docentes (${docentes.length})`}>
         <DataTable colunas={[{ titulo: 'Aluno' }]} linhas={docentes.map((d) => [<Iniciais key={d.id} nome={d.nome} cor="#15593c" iniciais={iniciaisDe(d.nome)} />])} />
       </AlunosSecao>
-      <AlunosSecao titulo={`Alunos (${alunos.length})`}>
+      <AlunosSecao titulo={`Alunos (${alunosFiltrados.length})`}>
         {alunos.length === 0 ? (
-          <p className="px-3 py-2 text-[16px] text-muted">Nenhum aluno na equipe ainda. Use “Adicionar membros” acima (código ou e-mail).</p>
+          <p className="px-3 py-2 text-[16px] text-muted">Nenhum aluno na equipe ainda. Use “Adicionar alunos” acima.</p>
+        ) : alunosFiltrados.length === 0 ? (
+          <p className="px-3 py-2 text-[16px] text-muted">Nenhum aluno encontrado com esse nome.</p>
         ) : (
           <DataTable
             cabecalhoAlto
@@ -683,7 +710,7 @@ export function EquipeAlunos() {
               { titulo: 'Formulários enviados', largura: '200px', centro: true },
               { titulo: 'Ação', largura: '120px', centro: true },
             ]}
-            linhas={alunos.map((a, i) => [
+            linhas={alunosFiltrados.map((a, i) => [
               <Iniciais key="n" nome={a.nome} cor={CORES_AVATAR[i % CORES_AVATAR.length] ?? '#a67b5b'} iniciais={iniciaisDe(a.nome)} />,
               <strong key="d">{a.dominio === null ? '—' : `${a.dominio}%`}</strong>,
               a.enviados,

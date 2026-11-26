@@ -8,8 +8,6 @@ import chevron from '../assets/figma/chevron-down.svg'
 import { Avatar, Icon, cx } from './ui'
 import { PerfilModal } from './modals'
 import { Notificacoes } from './Notificacoes'
-import { PesquisaSatisfacaoModal } from './PesquisaSatisfacao'
-import { isPesquisaTrimestralPendente } from '../data/satisfacao'
 
 const NAV_PROFESSOR = [
   { to: '/equipes', label: 'Equipes', icon: 'groups' },
@@ -169,12 +167,6 @@ export function AppShell({
   voltar?: { para: string; rotulo: string }
 }) {
   const [aberto, setAberto] = useState(false)
-  const [pesquisaAberta, setPesquisaAberta] = useState(false)
-  const { sessao, pesquisas } = useStore()
-
-  const perfil = sessao?.papel ?? 'aluno'
-  const pesquisasPerfil = pesquisas.filter((p) => p.perfil === perfil)
-  const trimestralPendente = isPesquisaTrimestralPendente(pesquisasPerfil)
   return (
     <div className="flex min-h-screen bg-page">
       <div className="sticky top-0 hidden h-screen lg:block">
@@ -202,35 +194,12 @@ export function AppShell({
             <BotaoVoltar para={voltar?.para} rotulo={voltar?.rotulo} compacto />
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
-            <button
-              type="button"
-              onClick={() => setPesquisaAberta(true)}
-              aria-label="Avaliar o HastyHelp"
-              className="relative flex cursor-pointer items-center gap-1.5 rounded-lg border border-line-input bg-white px-2 py-1.5 text-[14px] font-medium text-ink transition hover:border-ink hover:bg-page sm:px-3"
-              title="Deixe sua opinião anônima sobre o HastyHelp"
-            >
-              <Icon name="rate_review" className="text-[18px] text-muted" />
-              {/* em telas pequenas só o ícone, para a barra superior caber (RNF02) */}
-              <span className="hidden sm:inline">Avaliar o HastyHelp</span>
-              {trimestralPendente && (
-                <span
-                  title="Pesquisa trimestral pendente"
-                  className="absolute -right-1 -top-1 size-2.5 rounded-full bg-diff-c ring-2 ring-topbar"
-                />
-              )}
-            </button>
             <Notificacoes />
             {action}
           </div>
         </header>
         <main className="flex flex-col gap-5 px-4 sm:px-10">{children}</main>
       </div>
-      {pesquisaAberta && (
-        <PesquisaSatisfacaoModal
-          onClose={() => setPesquisaAberta(false)}
-          gatilho="continua"
-        />
-      )}
     </div>
   )
 }
