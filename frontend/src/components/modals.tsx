@@ -77,8 +77,8 @@ export function CriarEquipeModal({ onClose }: { onClose: () => void }) {
         <div className="flex w-full flex-col gap-3">
           <Field label="Nome da equipe" name="nome" placeholder="Ex: Engenharia de Software - 5° Semestre" value={nome} onChange={(e) => setNome(e.target.value)} />
           <SelectField label="Período letivo" placeholder="Selecione o período" value={periodo} onChange={setPeriodo} options={opcoesPeriodo} />
-          <div className="flex w-full flex-col gap-1">
-            <span className="text-[18px] text-ink">Docente</span>
+          <div className="flex w-full flex-col">
+            <span className="text-lg text-ink">Docente</span>
             <div className="flex items-center gap-2.5 rounded-lg border border-placeholder bg-white p-3">
               <Avatar letra={(sessao?.nome ?? 'A')[0] ?? 'A'} />
               <span className="text-[16px] text-placeholder">{sessao?.nome ?? ''}</span>
@@ -91,9 +91,6 @@ export function CriarEquipeModal({ onClose }: { onClose: () => void }) {
           )}
         </div>
         <Acoes concluir="Concluir" onClose={onClose} desabilitado={enviando} />
-        <p className="text-center text-[16px] text-[#555]">
-          Depois de criar, adicione alunos pelo menu ⋮ da equipe → 'Adicionar membros': por código ou por e-mail
-        </p>
       </form>
     </Modal>
   )
@@ -214,13 +211,13 @@ function PerguntasEditor({ perguntas, onChange, somenteLeitura }: { perguntas: P
 
   return (
     <fieldset className="flex w-full flex-col gap-1">
-      <legend className="mb-1 text-[18px] text-ink">Perguntas</legend>
+      <legend className="mb-1 text-lg text-ink">Perguntas</legend>
       <ul className="flex flex-col gap-1">
         {perguntas.map((pergunta, indice) => (
           <li
             key={pergunta.id}
             className={[
-              'flex items-start gap-2 rounded-lg px-3 py-3 transition-all duration-150',
+              'flex items-start gap-1 rounded-lg px-3 py-1 transition-all duration-150',
               editando === pergunta.id
                 ? 'border border-[#c9b8a0] bg-white shadow-[0_0_0_3px_rgba(201,184,160,0.25)]'
                 : 'border border-placeholder bg-white',
@@ -342,14 +339,10 @@ function PerguntasEditor({ perguntas, onChange, somenteLeitura }: { perguntas: P
   )
 }
 
-function CampoPrazoEGabarito({ prazo, setPrazo, gabarito, setGabarito }: { prazo: string; setPrazo: (v: string) => void; gabarito: boolean; setGabarito: (v: boolean) => void }) {
+function CampoPrazo({ prazo, setPrazo }: { prazo: string; setPrazo: (v: string) => void }) {
   return (
     <div className="flex flex-col gap-2">
       <Field label="Prazo para responder (opcional)" name="prazo" placeholder="Ex: 30/09/26" value={prazo} onChange={(e) => setPrazo(e.target.value)} />
-      <label className="flex w-fit cursor-pointer items-center gap-2 text-[16px] text-[#a08d77]">
-        <input type="checkbox" checked={gabarito} onChange={(e) => setGabarito(e.target.checked)} className="size-4 cursor-pointer accent-sidebar" />
-        Liberar o gabarito para os alunos depois de responderem
-      </label>
     </div>
   )
 }
@@ -362,7 +355,6 @@ export function CriarFormularioModal({ onClose, equipeIdInicial }: { onClose: ()
   const [hora, setHora] = useState('')
   const [postar, setPostar] = useState(false)
   const [prazo, setPrazo] = useState('')
-  const [gabarito, setGabarito] = useState(false)
   const [perguntas, setPerguntas] = useState<Pergunta[]>([])
   const [erro, setErro] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -379,7 +371,6 @@ export function CriarFormularioModal({ onClose, equipeIdInicial }: { onClose: ()
         perguntas: perguntas.filter((p) => p.enunciado.trim()).map(normalizarPergunta),
         ...(postar ? { postar: true } : data.trim() ? { publicarEm: dataHoraParaIso(data, hora) } : {}),
         ...(prazo.trim() ? { prazo: prazoParaApi(prazo) } : {}),
-        ...(gabarito ? { mostrarGabarito: true } : {}),
       })
       onClose()
     } catch (e) {
@@ -390,9 +381,9 @@ export function CriarFormularioModal({ onClose, equipeIdInicial }: { onClose: ()
   }
 
   return (
-    <Modal title="Criando Formulário" icon="add" onClose={onClose} width={647}>
-      <form onSubmit={enviar} className="flex w-full flex-col items-center gap-6">
-        <div className="flex w-full flex-col gap-5">
+    <Modal title="Criando Formulário" icon="add" onClose={onClose} width={500}>
+      <form onSubmit={enviar} className="flex w-full flex-col items-center gap-5">
+        <div className="flex w-full flex-col gap-3">
           <Field label="Nome do Formulário" name="nome" placeholder="Média, mediana e moda" value={nome} onChange={(e) => setNome(e.target.value)} />
           <SelectField
             label="Período letivo"
@@ -400,20 +391,20 @@ export function CriarFormularioModal({ onClose, equipeIdInicial }: { onClose: ()
             value={equipeId}
             onChange={setEquipeId}
             options={equipes.map((e, i) => ({ value: e.id, label: `${e.nome}${i ? ` (${e.periodo})` : ''}` }))}
-            leading={equipe && <TeamBadge sigla={equipe.sigla} cor={equipe.cor} size={32} fontSize={14} />}
-            leadingPad={52}
+            leading={equipe && <TeamBadge sigla={equipe.sigla} cor={equipe.cor} size={24} fontSize={12} />}
+            leadingPad={42}
           />
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1.5">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr]">
               <Field label="Data de publicação" name="data" placeholder="Ex: 24/09/26" value={data} onChange={(e) => setData(e.target.value)} disabled={postar} />
               <Field label="Horário" name="hora" placeholder="Ex: 00:00" value={hora} onChange={(e) => setHora(e.target.value)} disabled={postar} />
             </div>
-            <label className="flex w-fit cursor-pointer items-center gap-2 text-[16px] text-[#a08d77]">
+            <label className="flex w-fit cursor-pointer items-center gap-2 text-base text-[#a08d77]">
               <input type="checkbox" checked={postar} onChange={(e) => setPostar(e.target.checked)} className="size-4 cursor-pointer accent-sidebar" />
               Postar ao criar formulário
             </label>
           </div>
-          <CampoPrazoEGabarito prazo={prazo} setPrazo={setPrazo} gabarito={gabarito} setGabarito={setGabarito} />
+          <CampoPrazo prazo={prazo} setPrazo={setPrazo} />
           <PerguntasEditor perguntas={perguntas} onChange={setPerguntas} />
           {erro && (
             <p role="alert" className="text-[14px] text-diff-c">
@@ -450,7 +441,6 @@ export function EditarFormularioModal({ formulario, onClose }: { formulario: For
   const [data, setData] = useState('')
   const [hora, setHora] = useState('')
   const [prazo, setPrazo] = useState(formulario.prazo ?? '')
-  const [gabarito, setGabarito] = useState(formulario.mostrarGabarito ?? false)
   const [erro, setErro] = useState('')
   const [enviando, setEnviando] = useState(false)
   const perguntasEditaveis = formulario.status === 'rascunho' || formulario.status === 'agendado'
@@ -465,7 +455,6 @@ export function EditarFormularioModal({ formulario, onClose }: { formulario: For
         ...(status !== formulario.status ? { status } : {}),
         ...(precisaData ? { publicarEm: dataHoraParaIso(data, hora) } : {}),
         ...(perguntasEditaveis ? { perguntas: perguntas.filter((p) => p.enunciado.trim()).map(normalizarPergunta) } : {}),
-        mostrarGabarito: gabarito,
         ...(prazo.trim() !== (formulario.prazo ?? '') ? { prazo: prazo.trim() ? prazoParaApi(prazo) : null } : {}),
       })
       onClose()
@@ -477,9 +466,9 @@ export function EditarFormularioModal({ formulario, onClose }: { formulario: For
   }
 
   return (
-    <Modal title="Editando Formulário" icon="edit" onClose={onClose} width={647}>
-      <form onSubmit={enviar} className="flex w-full flex-col items-center gap-6">
-        <div className="flex w-full flex-col gap-5">
+    <Modal title="Editando Formulário" icon="edit" onClose={onClose} width={500}>
+      <form onSubmit={enviar} className="flex w-full flex-col items-center gap-5">
+        <div className="flex w-full flex-col gap-3">
           <Field label="Nome do Formulário" name="nome" value={nome} onChange={(e) => setNome(e.target.value)} />
           <SelectField
             label="Status"
@@ -496,14 +485,14 @@ export function EditarFormularioModal({ formulario, onClose }: { formulario: For
               <Field label="Horário" name="hora" placeholder="Ex: 00:00" value={hora} onChange={(e) => setHora(e.target.value)} />
             </div>
           )}
-          <div className="flex w-full flex-col gap-1">
+          <div className="flex w-full flex-col ">
             <span className="text-[18px] text-ink">Período letivo</span>
-            <div className="flex items-center gap-2 rounded-lg border border-placeholder bg-white p-3 text-[16px] text-placeholder">
-              {equipe && <TeamBadge sigla={equipe.sigla} cor={equipe.cor} size={32} fontSize={14} />}
-              {equipe?.nome}
+            <div className="flex h-10 items-center gap-2.5 rounded-lg border border-placeholder bg-white px-3 text-sm text-placeholder">
+              {equipe && <TeamBadge sigla={equipe.sigla} cor={equipe.cor} size={22} fontSize={10} />}
+              <span className="truncate">{equipe?.nome}</span>
             </div>
           </div>
-          <CampoPrazoEGabarito prazo={prazo} setPrazo={setPrazo} gabarito={gabarito} setGabarito={setGabarito} />
+          <CampoPrazo prazo={prazo} setPrazo={setPrazo} />
           <PerguntasEditor perguntas={perguntas} onChange={setPerguntas} somenteLeitura={!perguntasEditaveis} />
           {!perguntasEditaveis && <p className="text-[14px] text-muted">Formulários já publicados não podem ter as perguntas alteradas.</p>}
           {erro && (
@@ -534,8 +523,8 @@ function PerfilSwitch({
   return (
     <label
       className={cx(
-        'flex cursor-pointer items-center gap-4 text-[20px] font-medium text-ink',        
-        esconderLabel ? 'w-[52px] justify-center' : 'w-full justify-between',
+        'flex cursor-pointer items-center gap-3 text-lg font-medium text-ink',
+        esconderLabel ? 'w-11 justify-center' : 'w-full justify-between',
       )}
     >
       {!esconderLabel && <span>{label}</span>}
@@ -547,14 +536,14 @@ function PerfilSwitch({
         aria-label={label}
         onClick={() => onChange(!checked)}
         className={cx(
-          'relative flex h-[28px] w-[52px] shrink-0 cursor-pointer items-center rounded-full p-1 transition-colors',
+          'relative flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full p-1 transition-colors',
           checked ? 'bg-ok' : 'bg-line',
         )}
       >
         <span
           className={cx(
-            'size-[20px] rounded-full bg-white shadow-sm transition-transform',
-            checked ? 'translate-x-[24px]' : 'translate-x-0',
+            'size-4 rounded-full bg-white shadow-sm transition-transform',
+            checked ? 'translate-x-5' : 'translate-x-0',
           )}
         />
       </button>
@@ -572,15 +561,15 @@ function PerfilCheck({
   onChange: (checked: boolean) => void
 }) {
   return (
-    <label className="flex w-full cursor-pointer items-center justify-between gap-4 text-[18px] text-muted">
+    <label className="flex w-full cursor-pointer items-center justify-between text-base text-muted">
       <span>{label}</span>
 
-      <span className="flex w-[52px] shrink-0 justify-center">
+      <span className="flex w-11 shrink-0 justify-center">
         <input
           type="checkbox"
           checked={checked}
           onChange={(event) => onChange(event.target.checked)}
-          className="size-5 cursor-pointer accent-ok"
+          className="size-4 cursor-pointer accent-ok"
         />
       </span>
     </label>
@@ -634,40 +623,40 @@ export function PerfilModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal
-      title={`Perfil do ${ehAluno ? 'aluno' : 'professor'}`}
+      title="Perfil"
       icon="person"
       onClose={onClose}
-      width={600}
+      width={500}
     >
-      <div className="flex w-full flex-col gap-7">
-        <section className="flex w-full items-center gap-5 rounded-2xl border border-card-line bg-banner-to px-4 py-4 sm:px-5">
+      <div className="flex w-full flex-col gap-3">
+        <section className="flex w-full items-center gap-3 rounded-2xl border border-card-line bg-banner-to px-4 py-4 sm:px-5">
           <Avatar
             letra={iniciaisDoNome(nome)}
             cor={ehAluno ? '#a67b5b' : '#15593c'}
-            size={80}
+            size={70}
             className="!text-[30px]"
           />
 
           <div className="min-w-0 flex-1">
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-              <h3 className="truncate text-[28px] font-bold text-ink">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+              <h3 className="truncate text-2xl font-bold text-ink">
                 {nome}
               </h3>
 
-              <span className="w-fit rounded-md bg-btn px-3 py-1 text-[16px] text-muted">
+              <span className="w-fit px-1.5 border-1 border-card-line rounded-md bg-track text-[16px] text-muted">
                 {ehAluno ? 'Aluno' : 'Professor'}
               </span>
             </div>
 
-            <p className="truncate text-[18px] text-muted">
+            <p className="truncate text-base text-muted">
               {email}
             </p>
           </div>
         </section>
 
-        <section className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-4">
-            <h3 className="text-[20px] font-medium text-ink">
+        <section className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium text-ink">
               Notificações via Email
             </h3>
 
@@ -688,7 +677,7 @@ export function PerfilModal({ onClose }: { onClose: () => void }) {
             )}
           >
             <div className="min-h-0 overflow-hidden">
-              <div className="flex flex-col gap-3 pl-3 pt-1 sm:pl-6">
+              <div className="flex flex-col gap-1.5 pl-3 pt-1 sm:pl-5">
                 <PerfilCheck
                   label="Conclusão de formulários"
                   checked={rascunho.conclusaoFormularios}
@@ -729,7 +718,7 @@ export function PerfilModal({ onClose }: { onClose: () => void }) {
         />
 
         <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <label htmlFor="tema-perfil" className="text-[20px] font-medium text-ink">
+          <label htmlFor="tema-perfil" className="text-lg font-medium text-ink">
             Temas
           </label>
 
@@ -737,7 +726,7 @@ export function PerfilModal({ onClose }: { onClose: () => void }) {
             id="tema-perfil"
             value={rascunho.tema}
             onChange={(event) => atualizar('tema', event.target.value as 'claro' | 'escuro' | 'alto-contraste')}
-            className="w-full cursor-pointer rounded-lg border border-placeholder bg-white px-3 py-2 text-[18px] text-placeholder outline-none focus-visible:border-ink sm:w-[238px]"
+            className="w-full cursor-pointer rounded-lg border border-placeholder bg-white px-3 py-2 text-base text-placeholder outline-none focus-visible:border-ink sm:w-[180px]"
           >
             <option value="claro">Claro</option>
             <option value="escuro">Escuro</option>
@@ -751,20 +740,21 @@ export function PerfilModal({ onClose }: { onClose: () => void }) {
           </p>
         )}
 
-        <div className="flex w-full flex-col gap-3 sm:flex-row">
-          <ButtonBrown type="button" onClick={concluir}>
+        <div className="mt-5 flex w-full flex-col items-center gap-2">
+          <ButtonBrown type="button" onClick={concluir} className="w-full">
             Concluir
           </ButtonBrown>
+
+          <button
+            type="button"
+            onClick={encerrarSessao}
+            className="flex cursor-pointer items-center justify-center gap-1 py-1 text-sm font-medium text-diff-c transition hover:opacity-75"
+          >
+            <Icon name="logout" round={false} className="text-[18px]" />
+            Sair da conta
+          </button>
         </div>
 
-        <button
-          type="button"
-          onClick={encerrarSessao}
-          className="mx-auto flex cursor-pointer items-center gap-2 text-[18px] text-diff-c transition hover:opacity-75"
-        >
-          <Icon name="logout" round={false} />
-          Sair da conta
-        </button>
       </div>
     </Modal>
   )
@@ -793,7 +783,7 @@ export function ExcluirModal({
     ? 'Sair da equipe'
     : ehAluno
       ? 'Remover da equipe'
-      : 'Excluir permanentemente'
+      : 'Excluir'
 
   const rotuloConfirmacao = ehSairEquipe
     ? 'Sair da equipe'
@@ -814,39 +804,35 @@ export function ExcluirModal({
       title={titulo}
       icon={ehSairEquipe || ehAluno ? 'person' : 'delete'}
       onClose={onClose}
-      width={640}
-      titleClassName="!text-diff-c !text-[22px] sm:!text-[26px]"
+      width={500}
+      titleClassName="!text-diff-c !text-[22px] sm:!text-2xl"
     >
-      <form onSubmit={confirmar} className="flex w-full flex-col gap-7">
-        <p className="text-center text-[20px] leading-7 text-ink">
+      <form onSubmit={confirmar} className="flex w-full flex-col gap-3">
+        <p className="text-lg leading-7 text-ink text-pretty" >
           {ehSairEquipe ? (
             <>
               Você está prestes a sair da equipe <strong>{nome}</strong>.
-              <br />
               Suas respostas e sua participação nesta equipe serão apagadas.
             </>
           ) : ehAluno ? (
             <>
               Você está prestes a remover o aluno <strong>{nome}</strong> da equipe.
-              <br />
               As respostas dele(a) nesta equipe serão apagadas.
             </>
           ) : ehEquipe ? (
             <>
-              Você está prestes a excluir a equipe <strong>{nome}</strong>.
-              <br />
-              Todos os formulários, respostas de alunos e métricas associadas serão apagados.
+              Você está prestes a excluir a equipe de <strong>{nome}</strong>.
+              Todos os formulários, respostas e métricas associadas serão apagados.
             </>
           ) : (
             <>
               Você está prestes a excluir o formulário <strong>{nome}</strong>.
-              <br />
               Todas as respostas e métricas associadas serão apagadas.
             </>
           )}
         </p>
 
-        <label className="flex cursor-pointer items-center gap-3 text-[18px] text-ink">
+        <label className="flex cursor-pointer items-center gap-3 text-lg text-ink">
           <input
             type="checkbox"
             checked={confirmado}
@@ -859,7 +845,7 @@ export function ExcluirModal({
           </span>
         </label>
 
-        <div className="flex w-full gap-3">
+        <div className="mt-4 flex items-center justify-end gap-2">
           <ButtonBrown type="submit" disabled={!confirmado} className="bg-diff-c hover:bg-diff-c/80">
             {rotuloConfirmacao}
           </ButtonBrown>

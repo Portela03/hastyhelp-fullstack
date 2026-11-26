@@ -403,8 +403,7 @@ export function FormularioAlunos() {
             Esta turma ainda não possui alunos
           </h2>
           <p className="text-[15px] leading-relaxed text-muted max-w-md">
-            Para convidar alunos, selecione uma equipe, abra a aba{" "}
-            <span className="font-medium text-neutral-800">Alunos</span> e compartilhe o link de acesso.
+            Para convidar alunos, abra a aba <span className="font-medium text-ink">Alunos</span> da equipe e clique em Adicionar alunos.
           </p>
         </div>
 

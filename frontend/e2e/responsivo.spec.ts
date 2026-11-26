@@ -10,7 +10,7 @@ async function semRolagemHorizontal(page: Page, rota: string) {
 }
 
 test.describe('RNF02 - barra superior cabe na tela', () => {
-  test('RNF02 - telas do professor não têm rolagem horizontal e mantêm o botão de avaliar acessível', async ({ page }) => {
+  test('RNF02 - telas do professor não têm rolagem horizontal e avaliação fica na FAQ', async ({ page }) => {
     const prof = await criarUsuario('professor', 'Alberto')
     const turma = await criarTurma(prof)
     const form = await publicarFormulario(prof, turma.id)
@@ -19,12 +19,18 @@ test.describe('RNF02 - barra superior cabe na tela', () => {
 
     for (const rota of ['/equipes', '/avaliacoes', '/metricas', '/faq', `/equipes/${turma.id}`, `/avaliacoes/${form.id}`]) {
       await page.goto(rota)
-      await expect(page.getByRole('button', { name: 'Avaliar o HastyHelp' })).toBeVisible()
+      const avaliar = page.locator('header').getByRole('button', { name: 'Avaliar o HastyHelp' })
+      if (rota === '/faq') await expect(avaliar).toBeVisible()
+      else await expect(page.getByRole('button', { name: 'Avaliar o HastyHelp' })).toHaveCount(0)
       await semRolagemHorizontal(page, rota)
     }
+
+    await page.goto('/faq')
+    await page.locator('header').getByRole('button', { name: 'Avaliar o HastyHelp' }).click()
+    await expect(page.getByRole('dialog', { name: 'Avaliar o HastyHelp' })).toBeVisible()
   })
 
-  test('RNF02 - telas do aluno não têm rolagem horizontal', async ({ page }) => {
+  test('RNF02 - telas do aluno não têm rolagem horizontal e avaliação fica na FAQ', async ({ page }) => {
     const prof = await criarUsuario('professor', 'Alberto')
     const turma = await criarTurma(prof)
     const aluno = await criarUsuario('aluno', 'Sarah Chen', turma.codigoConvite)
@@ -34,7 +40,9 @@ test.describe('RNF02 - barra superior cabe na tela', () => {
 
     for (const rota of ['/aluno/turmas', '/aluno/autoavaliacoes', '/aluno/desempenho', '/aluno/faq']) {
       await page.goto(rota)
-      await expect(page.getByRole('button', { name: 'Avaliar o HastyHelp' })).toBeVisible()
+      const avaliar = page.locator('header').getByRole('button', { name: 'Avaliar o HastyHelp' })
+      if (rota === '/aluno/faq') await expect(avaliar).toBeVisible()
+      else await expect(page.getByRole('button', { name: 'Avaliar o HastyHelp' })).toHaveCount(0)
       await semRolagemHorizontal(page, rota)
     }
   })
