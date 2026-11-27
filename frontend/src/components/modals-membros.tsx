@@ -308,8 +308,8 @@ function AbaEmail({ equipe, onFechar }: { equipe: Equipe; onFechar: () => void }
       )}
 
       <div className="mt-auto flex w-full gap-3">
-        <ButtonBrown className="min-h-11" onClick={() => void convidar()} disabled={!escolhido || escolhido.convidado || enviando}>
-          Convidar
+        <ButtonBrown className="min-h-11" onClick={() => void convidar()} disabled={!escolhido || escolhido.convidado || enviando} aria-busy={enviando}>
+          {enviando ? 'Enviando convite…' : 'Convidar'}
         </ButtonBrown>
         <ButtonGhost className="min-h-11" onClick={onFechar}>Cancelar</ButtonGhost>
       </div>
@@ -419,7 +419,9 @@ export function EntrarEquipeModal({ onClose }: { onClose: () => void }) {
           </div>
           {erro && <p id={idErro} role="alert" className="text-[14px] text-erro">{erro}</p>}
           <div className="flex w-full gap-3">
-            <ButtonBrown className="min-h-11" type="submit" disabled={enviando}>Entrar</ButtonBrown>
+            <ButtonBrown className="min-h-11" type="submit" disabled={enviando} aria-busy={enviando}>
+              {enviando ? 'Entrando…' : 'Entrar'}
+            </ButtonBrown>
             <ButtonGhost className="min-h-11" onClick={onClose}>Cancelar</ButtonGhost>
           </div>
         </form>

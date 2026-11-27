@@ -15,11 +15,11 @@ export function gerarSigla(nome: string) {
   return letras.toUpperCase()
 }
 
-function Acoes({ concluir, onClose, desabilitado }: { concluir: string; onClose: () => void; desabilitado?: boolean }) {
+function Acoes({ concluir, onClose, desabilitado, carregando = 'Salvando…' }: { concluir: string; onClose: () => void; desabilitado?: boolean; carregando?: string }) {
   return (
     <div className="flex w-full gap-3">
-      <ButtonBrown type="submit" disabled={desabilitado}>
-        {concluir}
+      <ButtonBrown type="submit" disabled={desabilitado} aria-busy={desabilitado}>
+        {desabilitado ? carregando : concluir}
       </ButtonBrown>
       <ButtonGhost onClick={onClose}>Cancelar</ButtonGhost>
     </div>
@@ -90,7 +90,7 @@ export function CriarEquipeModal({ onClose }: { onClose: () => void }) {
             </p>
           )}
         </div>
-        <Acoes concluir="Concluir" onClose={onClose} desabilitado={enviando} />
+        <Acoes concluir="Concluir" onClose={onClose} desabilitado={enviando} carregando="Criando…" />
       </form>
     </Modal>
   )
@@ -412,7 +412,7 @@ export function CriarFormularioModal({ onClose, equipeIdInicial }: { onClose: ()
             </p>
           )}
         </div>
-        <Acoes concluir="Criar" onClose={onClose} desabilitado={enviando} />
+        <Acoes concluir="Criar" onClose={onClose} desabilitado={enviando} carregando="Criando…" />
       </form>
     </Modal>
   )
