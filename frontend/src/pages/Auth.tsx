@@ -22,13 +22,13 @@ export function AuthLayout({ titulo, children, voltarPara }: { titulo: string; c
   )
 }
 
-function AuthButtons({ principal, alternativa, para, desabilitado }: { principal: string; alternativa: string; para: string; desabilitado?: boolean }) {
+function AuthButtons({ principal, alternativa, para, desabilitado, carregando }: { principal: string; alternativa: string; para: string; desabilitado?: boolean; carregando?: string }) {
   const navigate = useNavigate();
 
   return (
     <div className="flex w-full gap-3">
-      <ButtonBrown type="submit" disabled={desabilitado}>
-        {principal}
+      <ButtonBrown type="submit" disabled={desabilitado} aria-busy={desabilitado}>
+        {desabilitado ? carregando ?? 'Carregando…' : principal}
       </ButtonBrown>
 
       <ButtonGhost onClick={() => navigate(para)}>
@@ -117,7 +117,7 @@ export function Login() {
             </p>
           )}
         </div>
-        <AuthButtons principal="Concluir" alternativa="Cadastrar" para={convite ? `/convite/${encodeURIComponent(convite)}` : '/cadastro'} desabilitado={enviando} />
+        <AuthButtons principal="Concluir" alternativa="Cadastrar" para={convite ? `/convite/${encodeURIComponent(convite)}` : '/cadastro'} desabilitado={enviando} carregando="Entrando…" />
       </form>
     </AuthLayout>
   )
@@ -206,7 +206,7 @@ export function Cadastro({ convite }: { convite?: boolean }) {
               </p>
             )}
           </div>
-          <AuthButtons principal="Cadastrar" alternativa="Já tenho conta" para={convite && codigo ? `/login?convite=${encodeURIComponent(codigo)}` : '/login'} desabilitado={enviando} />
+          <AuthButtons principal="Cadastrar" alternativa="Já tenho conta" para={convite && codigo ? `/login?convite=${encodeURIComponent(codigo)}` : '/login'} desabilitado={enviando} carregando="Cadastrando…" />
         </form>
       )}
     </AuthLayout>
@@ -277,7 +277,9 @@ function ConviteLogado() {
             )}
             {erro && <p role="alert" className="text-[14px] text-diff-c">{erro}</p>}
             {aluno ? (
-              <ButtonBrown onClick={() => void entrar()} disabled={enviando}>Entrar na equipe</ButtonBrown>
+              <ButtonBrown onClick={() => void entrar()} disabled={enviando} aria-busy={enviando}>
+                {enviando ? 'Entrando…' : 'Entrar na equipe'}
+              </ButtonBrown>
             ) : (
               <ButtonBrown onClick={() => navigate('/equipes')}>Ir para minhas equipes</ButtonBrown>
             )}
@@ -343,7 +345,7 @@ export function EsqueciSenha() {
               </p>
             )}
           </div>
-          <AuthButtons principal="Gerar link" alternativa="Cancelar" para="/login" desabilitado={enviando} />
+          <AuthButtons principal="Gerar link" alternativa="Cancelar" para="/login" desabilitado={enviando} carregando="Gerando link…" />
         </form>
       )}
     </AuthLayout>
@@ -397,7 +399,7 @@ export function RedefinirSenha() {
               </p>
             )}
           </div>
-          <AuthButtons principal="Salvar senha" alternativa="Cancelar" para="/login" desabilitado={enviando} />
+          <AuthButtons principal="Salvar senha" alternativa="Cancelar" para="/login" desabilitado={enviando} carregando="Salvando…" />
         </form>
       )}
     </AuthLayout>
